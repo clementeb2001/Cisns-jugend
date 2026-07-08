@@ -27,12 +27,14 @@ einem Synology-NAS (Docker), DSGVO-konform ohne Weitergabe an Dritte.
 ```
 backend/            Node.js + Express + SQLite (better-sqlite3)
   src/
-    server.js       Einstiegspunkt, liefert API + statisches Frontend
+    server.js       Einstiegspunkt (startet den HTTP-Server)
+    app.js          Express-App (API + statisches Frontend), testbar
     schema.sql      Datenbankschema (idempotent)
     auth.js         JWT + bcrypt, Middleware requireAuth/requireAdmin
     xlsx.js         Abhängigkeitsfreier XLSX-Writer
     seed.js         Legt Admin (+ optional Demodaten) an
     routes/         auth, users, members, events, sync, stats, export
+  test/api.test.js  API-/Sync-Tests (node --test)
 frontend/           Vanilla-JS-PWA (kein Build-Schritt nötig)
   index.html        App-Shell
   manifest.webmanifest, sw.js
@@ -62,6 +64,16 @@ JWT_SECRET=dev npm start
 ```
 
 Der Server liefert sowohl die API (`/api/...`) als auch das Frontend aus.
+
+### Tests
+
+```bash
+cd backend
+npm test   # node --test: Auth, Rollen, Sync/Last-Write-Wins, Statistik, Export
+```
+
+Die Tests laufen gegen eine temporäre SQLite-DB und benötigen keine externen
+Dienste.
 
 ## Deployment auf dem Synology DS225+
 
