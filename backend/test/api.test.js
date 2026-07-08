@@ -186,3 +186,38 @@ test('Excel-Export: nur Admin, valides XLSX (ZIP mit erwarteten Teilen)', async 
   assert.ok(text.includes('xl/worksheets/sheet1.xml'));
   assert.ok(text.includes('xl/worksheets/sheet2.xml'));
 });
+
+test('Helfer darf keine fremde Helfer-Präsenz eintragen (nur eigene)', async () => {
+  const otherId = db.prepare('SELECT id FROM users WHERE username = ?').get('helfer2').id;
+  // helfer1 versucht, die Präsenz von helfer2 einzutragen -> abgelehnt
+  const res = await api('POST', '/api/sync/push', {
+    token: helperToken,
+    body: { attendance_helpers: [{ id: crypto.randomUUID(), event_id: eventId, helper_id: otherId, status: 'present', hours: 1, updated_at: new Date().toISOString() }] },
+  });
+  const d = await res.json();
+  assert.equal(d.attendance_helpers[0].ok, false);
+  assert.match(d.attendance_helpers[0].error, /eigene/i);
+
+  // Admin darf für andere Helfer eintragen
+  const adminRes = await api('POST', '/api/sync/push', {
+    token: adminToken,
+    body: { attendance_helpers: [{ id: crypto.randomUUID(), event_id: eventId, helper_id: otherId, status: 'present', hours: 1.5, updated_at: new Date().toISOString() }] },
+  });
+  assert.equal((await adminRes.json()).attendance_helpers[0].server.hours, 1.5);
+});
+
+test('Mitglied: Notfallkontakt wird gespeichert und ausgeliefert', async () => {
+  const create = await api('POST', '/api/members', {
+    token: adminToken,
+    body: { first_name: 'Nina', last_name: 'Zart', emergency_contact: 'Mutter (Sabine)', emergency_phone: '0170 1234567' },
+  });
+  assert.equal(create.status, 201);
+  const created = await create.json();
+  assert.equal(created.emergency_contact, 'Mutter (Sabine)');
+  assert.equal(created.emergency_phone, '0170 1234567');
+
+  // Auch ein Helfer darf die Mitglieder (inkl. Notfallkontakt) einsehen
+  const list = await (await api('GET', '/api/members', { token: helperToken })).json();
+  const found = list.find((m) => m.id === created.id);
+  assert.equal(found.emergency_phone, '0170 1234567');
+});

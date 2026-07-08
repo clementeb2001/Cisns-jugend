@@ -17,4 +17,15 @@ db.pragma('foreign_keys = ON');
 const schema = fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8');
 db.exec(schema);
 
+// Leichte Migrationen für bereits bestehende Datenbanken:
+// fehlende Spalten nachrüsten (SQLite kennt kein "ADD COLUMN IF NOT EXISTS").
+function ensureColumn(table, column, definition) {
+  const cols = db.prepare(`PRAGMA table_info(${table})`).all();
+  if (!cols.some((c) => c.name === column)) {
+    db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} ${definition}`);
+  }
+}
+ensureColumn('members', 'emergency_contact', 'TEXT');
+ensureColumn('members', 'emergency_phone', 'TEXT');
+
 export default db;

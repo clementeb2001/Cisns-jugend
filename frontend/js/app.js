@@ -93,6 +93,7 @@
     const nav = $('#bottom-nav');
     const items = [
       { view: 'events', label: 'Termine', icon: '📅' },
+      { view: 'roster', label: 'Mitglieder', icon: '👥' },
       { view: 'stats', label: 'Statistik', icon: '📊' },
     ];
     if (state.user.role === 'admin') {
@@ -116,6 +117,7 @@
     try {
       if (state.view === 'events') return await renderEvents(main);
       if (state.view === 'event') return await renderEventDetail(main, state.params.id);
+      if (state.view === 'roster') return await renderRoster(main);
       if (state.view === 'stats') return await renderStats(main);
       if (state.view === 'admin') return await renderAdmin(main);
     } catch (e) {
@@ -164,6 +166,12 @@
     const mMap = new Map(mAtt.map((a) => [a.member_id, a]));
     const hMap = new Map(hAtt.map((a) => [a.helper_id, a]));
     const canEditEvent = state.user.role === 'admin' || ev.created_by === state.user.id;
+    const isAdmin = state.user.role === 'admin';
+
+    // Helfer dürfen nur die EIGENE Präsenz eintragen -> nur sich selbst anzeigen.
+    const visibleHelpers = isAdmin ? helpers : helpers.filter((h) => h.id === state.user.id);
+    const helperLabel = isAdmin ? `Jugendhelfer (${visibleHelpers.length})` : 'Eigene Präsenz';
+    const part = state.params.part === 'helper' ? 'helper' : 'member';
 
     main.innerHTML = `
       <div class="page-head">
@@ -179,20 +187,36 @@
         ${ev.note ? `<div class="event-note">${esc(ev.note)}</div>` : ''}
       </div>
 
-      <h2 class="section-title">Mitglieder <span class="muted">(${members.length})</span></h2>
-      <div class="list attendance-list" id="member-list">
+      <div class="card att-switch">
+        <label>Präsenz erfassen für
+          <select id="att-part">
+            <option value="member" ${part === 'member' ? 'selected' : ''}>Mitglieder (${members.length})</option>
+            <option value="helper" ${part === 'helper' ? 'selected' : ''}>${helperLabel}</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="list attendance-list ${part === 'member' ? '' : 'hidden'}" id="member-list">
         ${members.map((m) => attendanceRow('member', m.id, `${m.last_name}, ${m.first_name}`, mMap.get(m.id))).join('')
           || '<div class="empty">Keine aktiven Mitglieder.</div>'}
       </div>
 
-      <h2 class="section-title">Jugendhelfer <span class="muted">(${helpers.length})</span></h2>
-      <div class="list attendance-list" id="helper-list">
-        ${helpers.map((h) => helperRow(h, hMap.get(h.id), eventDurationHours(ev))).join('')
+      <div class="list attendance-list ${part === 'helper' ? '' : 'hidden'}" id="helper-list">
+        ${visibleHelpers.map((h) => helperRow(h, hMap.get(h.id), eventDurationHours(ev))).join('')
           || '<div class="empty">Keine Jugendhelfer.</div>'}
       </div>`;
 
     $('#back').onclick = () => navigate('events');
     if (canEditEvent) $('#edit-event').onclick = () => eventForm(ev);
+
+    // Umschalten zwischen Mitglieder- und Helfer-Erfassung
+    $('#att-part').onchange = (e) => {
+      const p = e.target.value;
+      state.params.part = p;
+      $('#member-list').classList.toggle('hidden', p !== 'member');
+      $('#helper-list').classList.toggle('hidden', p !== 'helper');
+      $('#main-content').scrollTop = 0;
+    };
 
     // Status-Buttons Mitglieder
     main.querySelectorAll('#member-list .status-btn').forEach((btn) => {
@@ -464,35 +488,53 @@
 
   // ---------- Ansicht: Verwaltung (nur Admin) ----------
   async function renderAdmin(main) {
-    const sub = state.params.sub || 'members';
+    const sub = state.params.sub || 'users';
     main.innerHTML = `
       <div class="page-head"><h1>Verwaltung</h1></div>
       <div class="tabs">
-        <button class="tab ${sub === 'members' ? 'active' : ''}" data-sub="members">Mitglieder</button>
         <button class="tab ${sub === 'users' ? 'active' : ''}" data-sub="users">Helfer</button>
         <button class="tab ${sub === 'sync' ? 'active' : ''}" data-sub="sync">Sync</button>
       </div>
       <div id="admin-body"></div>`;
     main.querySelectorAll('.tab').forEach((t) => t.onclick = () => navigate('admin', { sub: t.dataset.sub }));
     const body = $('#admin-body');
-    if (sub === 'members') return adminMembers(body);
-    if (sub === 'users') return adminUsers(body);
     if (sub === 'sync') return adminSync(body);
+    return adminUsers(body);
   }
 
-  async function adminMembers(body) {
-    const members = await API.get('/members?includeInactive=1').catch(() => data.members());
-    body.innerHTML = `
-      <div class="page-head"><h2>Mitglieder</h2><button class="btn btn-primary" id="add-m">+ Mitglied</button></div>
-      <div class="list">${members.map((m) => `
-        <div class="card list-row ${m.active ? '' : 'inactive'}">
-          <div><b>${esc(m.last_name)}, ${esc(m.first_name)}</b>${m.active ? '' : ' <span class="badge">inaktiv</span>'}
-            ${m.birth_date ? `<div class="muted small">geb. ${fmtDate(m.birth_date)}</div>` : ''}</div>
-          <button class="btn btn-outline" data-edit="${m.id}">Bearbeiten</button>
-        </div>`).join('') || '<div class="empty">Noch keine Mitglieder.</div>'}</div>`;
-    $('#add-m').onclick = () => memberForm();
-    body.querySelectorAll('[data-edit]').forEach((b) =>
-      b.onclick = () => memberForm(members.find((m) => m.id === Number(b.dataset.edit))));
+  // ---------- Ansicht: Mitglieder (Roster) ----------
+  // Admin kann bearbeiten/anlegen; Helfer sehen die Liste nur (inkl.
+  // Notfallkontakt), ohne Änderungsmöglichkeit.
+  async function renderRoster(main) {
+    const isAdmin = state.user.role === 'admin';
+    let members;
+    try { members = await API.get('/members' + (isAdmin ? '?includeInactive=1' : '')); }
+    catch { members = await data.members(); }
+    main.innerHTML = `
+      <div class="page-head"><h1>Mitglieder</h1>${isAdmin ? '<button class="btn btn-primary" id="add-m">+ Mitglied</button>' : ''}</div>
+      ${isAdmin ? '' : '<p class="hint-line">Nur Ansicht – Änderungen nimmt die Jugendfeuerwehr-Leitung vor.</p>'}
+      <div class="list">${members.map((m) => memberCard(m, isAdmin)).join('') || '<div class="empty">Noch keine Mitglieder.</div>'}</div>`;
+    if (isAdmin) {
+      $('#add-m').onclick = () => memberForm();
+      main.querySelectorAll('[data-edit]').forEach((b) =>
+        b.onclick = () => memberForm(members.find((m) => m.id === Number(b.dataset.edit))));
+    }
+  }
+
+  function memberCard(m, isAdmin) {
+    const contact = (m.emergency_contact || m.emergency_phone)
+      ? `<div class="muted small">📞 ${esc(m.emergency_contact || 'Notfall')}${m.emergency_phone
+          ? `: <a class="contact-tel" href="tel:${esc(String(m.emergency_phone).replace(/\s/g, ''))}">${esc(m.emergency_phone)}</a>` : ''}</div>`
+      : '';
+    return `
+      <div class="card list-row ${m.active ? '' : 'inactive'}">
+        <div>
+          <b>${esc(m.last_name)}, ${esc(m.first_name)}</b>${m.active ? '' : ' <span class="badge">inaktiv</span>'}
+          ${m.birth_date ? `<div class="muted small">geb. ${fmtDate(m.birth_date)}</div>` : ''}
+          ${contact}
+        </div>
+        ${isAdmin ? `<button class="btn btn-outline" data-edit="${m.id}">Bearbeiten</button>` : ''}
+      </div>`;
   }
 
   function memberForm(m = null) {
@@ -504,7 +546,8 @@
           <label>Nachname<input name="last_name" value="${esc(m?.last_name || '')}" required /></label>
         </div>
         <label>Geburtsdatum<input type="date" name="birth_date" value="${m?.birth_date || ''}" /></label>
-        <label>Eintrittsdatum<input type="date" name="join_date" value="${m?.join_date || ''}" /></label>
+        <label>Notfallkontakt<input name="emergency_contact" value="${esc(m?.emergency_contact || '')}" placeholder="z.B. Mutter (Name)" /></label>
+        <label>Telefon Eltern / Notfall<input type="tel" name="emergency_phone" value="${esc(m?.emergency_phone || '')}" placeholder="z.B. 0170 1234567" /></label>
         ${isEdit ? `<label class="check"><input type="checkbox" name="active" ${m.active ? 'checked' : ''} /> aktiv</label>` : ''}
         <div class="form-actions">
           ${isEdit ? '<button type="button" class="btn btn-danger" id="del-m">Löschen/Inaktiv</button>' : '<span></span>'}
@@ -517,7 +560,9 @@
         const fd = new FormData(e.target);
         const payload = {
           first_name: fd.get('first_name'), last_name: fd.get('last_name'),
-          birth_date: fd.get('birth_date') || null, join_date: fd.get('join_date') || null,
+          birth_date: fd.get('birth_date') || null,
+          emergency_contact: fd.get('emergency_contact') || null,
+          emergency_phone: fd.get('emergency_phone') || null,
         };
         if (isEdit) payload.active = fd.get('active') ? 1 : 0;
         try {
@@ -585,6 +630,8 @@
               role: fd.get('role'), pin: fd.get('pin'),
             });
           }
+          // Helfer-Cache auffrischen, damit neue Helfer sofort in Präsenz/Statistik erscheinen
+          await Sync.bootstrap().catch(() => {});
           close(); adminUsers($('#admin-body')); toast('Gespeichert', 'success');
         } catch (err) { toast(err.message, 'error'); }
       };
@@ -648,7 +695,7 @@
     if (!st.online || st.syncing) return;
     if (document.querySelector('.modal-overlay')) return; // laufende Eingabe nicht unterbrechen
     if (state.view === 'event') updatePendingDots();
-    else if (state.view === 'events' || state.view === 'stats') render();
+    else if (state.view === 'events' || state.view === 'stats' || state.view === 'roster') render();
   }
 
   // ---------- Auth / Boot ----------

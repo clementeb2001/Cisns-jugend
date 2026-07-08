@@ -31,14 +31,14 @@ function seedDemo(adminId) {
   ).run(hashPin('1111')).lastInsertRowid;
 
   const members = [
-    ['Anna', 'Beispiel', '2012-04-11'],
-    ['Ben', 'Muster', '2011-09-02'],
-    ['Clara', 'Test', '2013-01-20'],
-    ['David', 'Probe', '2010-12-05'],
+    ['Anna', 'Beispiel', '2012-04-11', 'Mutter (Sabine)', '0170 1234567'],
+    ['Ben', 'Muster', '2011-09-02', 'Vater (Thomas)', '0171 2345678'],
+    ['Clara', 'Test', '2013-01-20', 'Mutter (Petra)', '0172 3456789'],
+    ['David', 'Probe', '2010-12-05', 'Eltern', '0173 4567890'],
   ];
-  const mIds = members.map(([f, l, b]) =>
-    db.prepare('INSERT INTO members (first_name, last_name, birth_date, join_date) VALUES (?, ?, ?, ?)')
-      .run(f, l, b, '2023-01-01').lastInsertRowid);
+  const mIds = members.map(([f, l, b, ec, ep]) =>
+    db.prepare('INSERT INTO members (first_name, last_name, birth_date, emergency_contact, emergency_phone) VALUES (?, ?, ?, ?, ?)')
+      .run(f, l, b, ec, ep).lastInsertRowid);
 
   const eventId = db.prepare(
     "INSERT INTO events (date, start_time, end_time, type, location, created_by) VALUES (?, '18:00', '19:30', 'Übung', 'Feuerwehrhaus', ?)"

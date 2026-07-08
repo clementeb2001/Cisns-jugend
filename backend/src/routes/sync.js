@@ -58,6 +58,10 @@ function upsertHelper(user, rec) {
   if (!rec.id || !rec.event_id || !rec.helper_id || !VALID_STATUS.includes(rec.status)) {
     return { id: rec.id, ok: false, error: 'Ungültiger Datensatz' };
   }
+  // Helfer dürfen nur ihre EIGENE Präsenz erfassen; Admin darf für alle eintragen.
+  if (user.role !== 'admin' && rec.helper_id !== user.id) {
+    return { id: rec.id, ok: false, error: 'Helfer dürfen nur die eigene Präsenz eintragen' };
+  }
   const existing = db.prepare('SELECT * FROM attendance_helpers WHERE id = ? OR (event_id = ? AND helper_id = ?)')
     .get(rec.id, rec.event_id, rec.helper_id);
   const updated_at = rec.updated_at || new Date().toISOString();

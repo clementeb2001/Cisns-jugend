@@ -43,6 +43,8 @@ body {
 .btn-outline { background: #fff; border: 1.5px solid var(--border); color: var(--text); }
 .btn-danger { background: #fee2e2; color: var(--rose); }
 .btn-ghost { background: transparent; color: inherit; padding: 8px 10px; }
+/* Ghost-Buttons auf dem dunklen App-Hintergrund (z.B. "‹ Zurück") hell darstellen */
+.main-content .btn-ghost { color: #e2e8f0; }
 
 .error-msg { color: var(--rose); margin-top: 10px; font-size: .9rem; min-height: 1.2em; }
 
@@ -105,10 +107,19 @@ body {
 }
 .list { display: flex; flex-direction: column; }
 .page-head { display: flex; align-items: center; justify-content: space-between; margin: 4px 0 14px; gap: 10px; }
-.page-head h1 { font-size: 1.4rem; }
-.page-head h2 { font-size: 1.15rem; }
-.section-title { margin: 18px 0 10px; font-size: 1.1rem; }
+/* Überschriften stehen direkt auf dem dunklen App-Hintergrund -> helle Schrift */
+.page-head h1 { font-size: 1.4rem; color: #f1f5f9; }
+.page-head h2 { font-size: 1.15rem; color: #f1f5f9; }
+.section-title { margin: 18px 0 10px; font-size: 1.1rem; color: #f1f5f9; }
+.section-title .muted { color: #cbd5e1; }
+.hint-line { color: #cbd5e1; font-size: .85rem; margin: -6px 0 12px; }
 .empty { color: var(--muted); text-align: center; padding: 30px 10px; }
+
+/* Auswahl "Mitglieder / Eigene Präsenz" in der Präsenz-Erfassung */
+.att-switch label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .92rem; color: var(--text); }
+.att-switch select { font-size: 1rem; }
+.contact-tel { color: var(--red); text-decoration: none; font-weight: 600; }
+.contact-tel:hover { text-decoration: underline; }
 
 /* Termin-Karten */
 .event-card { cursor: pointer; }

@@ -18,14 +18,15 @@ CREATE TABLE IF NOT EXISTS users (
 
 -- Jugendfeuerwehr-Mitglieder
 CREATE TABLE IF NOT EXISTS members (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  first_name TEXT    NOT NULL,
-  last_name  TEXT    NOT NULL,
-  birth_date TEXT,            -- ISO-Datum, optional (Altersgruppen-Auswertung)
-  join_date  TEXT,            -- Eintrittsdatum, optional
-  active     INTEGER NOT NULL DEFAULT 1,  -- inaktiv statt löschen (Statistik-Historie)
-  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  id                INTEGER PRIMARY KEY AUTOINCREMENT,
+  first_name        TEXT    NOT NULL,
+  last_name         TEXT    NOT NULL,
+  birth_date        TEXT,            -- ISO-Datum, optional (Altersgruppen-Auswertung)
+  emergency_contact TEXT,            -- Notfallkontakt (z.B. "Mutter", Name)
+  emergency_phone   TEXT,            -- Telefonnummer der Eltern / des Notfallkontakts
+  active            INTEGER NOT NULL DEFAULT 1,  -- inaktiv statt löschen (Statistik-Historie)
+  created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at        TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Termine
