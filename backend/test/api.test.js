@@ -77,10 +77,18 @@ test('Admin legt Mitglied an, Helfer darf das nicht', async () => {
 test('Helfer darf Termine anlegen', async () => {
   const res = await api('POST', '/api/events', {
     token: helperToken,
-    body: { date: '2026-03-01', start_time: '18:00', end_time: '20:00', type: 'Übung' },
+    body: { date: '2026-03-01', start_time: '18:00', end_time: '20:00', type: 'Praktische Übung' },
   });
   assert.equal(res.status, 201);
   eventId = (await res.json()).id;
+});
+
+test('Termin "Sonstiges" ohne Beschreibung wird abgelehnt', async () => {
+  const bad = await api('POST', '/api/events', { token: helperToken, body: { date: '2026-03-05', type: 'Sonstiges' } });
+  assert.equal(bad.status, 400);
+  const ok = await api('POST', '/api/events', { token: helperToken, body: { date: '2026-03-05', type: 'Sonstiges', type_detail: 'Grillfest' } });
+  assert.equal(ok.status, 201);
+  assert.equal((await ok.json()).type_detail, 'Grillfest');
 });
 
 test('Sync-Push legt Präsenz an (Offline-Queue)', async () => {
@@ -129,7 +137,7 @@ test('Bootstrap liefert kompletten Datenstand', async () => {
   const res = await api('GET', '/api/sync/bootstrap', { token: helperToken });
   const data = await res.json();
   assert.equal(data.members.length, 1);
-  assert.equal(data.events.length, 1);
+  assert.ok(data.events.length >= 1);
   assert.equal(data.attendance_members.length, 1);
   assert.equal(data.attendance_helpers.length, 1);
 });
@@ -143,32 +151,69 @@ test('Statistik zählt Status korrekt', async () => {
   assert.equal(h[0].present, 1);
 });
 
-test('Helfer-Editierfenster: fremder alter Eintrag nur von Admin änderbar', async () => {
-  // Ein zweiter Helfer versucht, einen bereits synchronisierten Eintrag ausserhalb
-  // seines Fensters zu ändern -> abgelehnt (entered_by != user, kein Admin).
-  const other = db.prepare("INSERT INTO users (username, pin_hash, role, display_name) VALUES ('helfer2', ?, 'helper', 'Helfer Zwei')").run(hashPin('2222')).lastInsertRowid;
+test('Mitglieder-Präsenz: fremder Helfer gesperrt, Erfasser + Admin erlaubt', async () => {
+  // helfer1 ist Erfasser (aus vorherigen Tests). Ein zweiter Helfer darf die
+  // Mitglieder-Präsenz dieses Termins NICHT ändern.
+  db.prepare("INSERT INTO users (username, pin_hash, role, display_name) VALUES ('helfer2', ?, 'helper', 'Helfer Zwei')").run(hashPin('2222'));
   const otherToken = (await (await api('POST', '/api/auth/login', { body: { username: 'helfer2', pin: '2222' } })).json()).token;
   const existing = db.prepare('SELECT id FROM attendance_members WHERE event_id = ? AND member_id = ?').get(eventId, memberId);
-  // entered_at künstlich alt setzen, damit es ausserhalb des Fensters liegt
-  db.prepare("UPDATE attendance_members SET entered_at = '2020-01-01T00:00:00.000Z' WHERE id = ?").run(existing.id);
 
-  // updated_at klar neuer als der gespeicherte Stand, damit die Prüfung nicht
-  // schon an der Last-Write-Wins-Logik (älterer Stand) endet, sondern das
-  // Bearbeitungsfenster greift.
   const res = await api('POST', '/api/sync/push', {
     token: otherToken,
     body: { attendance_members: [{ id: existing.id, event_id: eventId, member_id: memberId, status: 'present', updated_at: new Date(Date.now() + 7200000).toISOString() }] },
   });
   const d = await res.json();
   assert.equal(d.attendance_members[0].ok, false);
-  assert.match(d.attendance_members[0].error, /fenster/i);
+  assert.match(d.attendance_members[0].error, /anderen Helfer|erfasst/i);
 
-  // Admin darf denselben Eintrag ändern
+  // Erfasser (helfer1) darf weiter korrigieren
+  const own = await api('POST', '/api/sync/push', {
+    token: helperToken,
+    body: { attendance_members: [{ id: existing.id, event_id: eventId, member_id: memberId, status: 'present', updated_at: new Date(Date.now() + 7200001).toISOString() }] },
+  });
+  assert.equal((await own.json()).attendance_members[0].server.status, 'present');
+
+  // Admin darf immer
   const adminRes = await api('POST', '/api/sync/push', {
     token: adminToken,
-    body: { attendance_members: [{ id: existing.id, event_id: eventId, member_id: memberId, status: 'present', updated_at: new Date(Date.now() + 7200000).toISOString() }] },
+    body: { attendance_members: [{ id: existing.id, event_id: eventId, member_id: memberId, status: 'excused', updated_at: new Date(Date.now() + 7200002).toISOString() }] },
   });
-  assert.equal((await adminRes.json()).attendance_members[0].server.status, 'present');
+  assert.equal((await adminRes.json()).attendance_members[0].server.status, 'excused');
+});
+
+test('Termin abschließen sperrt Helfer (Präsenz + Stunden), Admin bleibt', async () => {
+  await api('POST', `/api/events/${eventId}/close`, { token: adminToken });
+
+  // Helfer darf eigene Stunden nicht mehr ändern
+  const h = await api('POST', '/api/sync/push', {
+    token: helperToken,
+    body: { attendance_helpers: [{ id: uuid(), event_id: eventId, helper_id: helperId, status: 'present', hours: 5, updated_at: new Date().toISOString() }] },
+  });
+  assert.equal((await h.json()).attendance_helpers[0].ok, false);
+
+  // Erfasser darf Mitglieder-Präsenz nicht mehr ändern
+  // (Zeitstempel klar neuer als frühere Tests, sonst greift schon Last-Write-Wins)
+  const existing = db.prepare('SELECT id FROM attendance_members WHERE event_id = ? AND member_id = ?').get(eventId, memberId);
+  const m = await api('POST', '/api/sync/push', {
+    token: helperToken,
+    body: { attendance_members: [{ id: existing.id, event_id: eventId, member_id: memberId, status: 'present', updated_at: new Date(Date.now() + 7300000).toISOString() }] },
+  });
+  assert.equal((await m.json()).attendance_members[0].ok, false);
+
+  // Admin darf weiterhin
+  const a = await api('POST', '/api/sync/push', {
+    token: adminToken,
+    body: { attendance_members: [{ id: existing.id, event_id: eventId, member_id: memberId, status: 'present', updated_at: new Date(Date.now() + 7300001).toISOString() }] },
+  });
+  assert.equal((await a.json()).attendance_members[0].ok, true);
+
+  // Wieder öffnen -> Helfer darf wieder eigene Stunden
+  await api('POST', `/api/events/${eventId}/reopen`, { token: adminToken });
+  const reopened = await api('POST', '/api/sync/push', {
+    token: helperToken,
+    body: { attendance_helpers: [{ id: uuid(), event_id: eventId, helper_id: helperId, status: 'present', hours: 4, updated_at: new Date().toISOString() }] },
+  });
+  assert.equal((await reopened.json()).attendance_helpers[0].server.hours, 4);
 });
 
 test('Excel-Export: nur Admin, valides XLSX (ZIP mit erwarteten Teilen)', async () => {

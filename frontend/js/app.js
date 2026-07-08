@@ -9,7 +9,7 @@
     excused:   { label: 'Entschuldigt',  cls: 'excused' },
     unexcused: { label: 'Fehlt',         cls: 'unexcused' },
   };
-  const EVENT_TYPES = ['Übung', 'Ausbildung', 'Einsatz', 'Sonstiges'];
+  const EVENT_TYPES = ['Praktische Übung', 'Theorie', 'Freizeit', 'Sonstiges'];
 
   const state = { user: null, view: 'events', params: {} };
 
@@ -31,6 +31,12 @@
     setTimeout(() => t.classList.add('show'), 10);
     setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.remove(), 300); }, 2600);
   }
+
+  // Anzeigetext der Terminart (bei "Sonstiges" mit Beschreibung)
+  function typeLabel(ev) {
+    return ev.type === 'Sonstiges' && ev.type_detail ? `Sonstiges: ${ev.type_detail}` : ev.type;
+  }
+  const closedBadge = (ev) => ev.closed ? '<span class="badge badge-closed">🔒 Abgeschlossen</span>' : '';
 
   // Dauer eines Termins in Stunden (für Helfer-Stunden-Default)
   function eventDurationHours(ev) {
@@ -146,7 +152,8 @@
       <div class="card event-card" data-event="${ev.id}">
         <div class="event-date">
           <span class="event-day">${fmtDate(ev.date)}</span>
-          <span class="badge badge-type">${esc(ev.type)}</span>
+          <span class="badge badge-type">${esc(typeLabel(ev))}</span>
+          ${closedBadge(ev)}
         </div>
         <div class="event-meta">
           ${ev.start_time ? `🕒 ${esc(ev.start_time)}${ev.end_time ? '–' + esc(ev.end_time) : ''}` : ''}
@@ -158,6 +165,9 @@
 
   // ---------- Ansicht: Präsenz-Erfassung ----------
   async function renderEventDetail(main, eventId) {
+    // Beim Öffnen (online) frischen Serverstand holen, damit Abschluss-Status,
+    // Erfasser-Sperre und fremde Einträge aktuell angezeigt werden.
+    if (navigator.onLine) { try { await Sync.bootstrap(); } catch { /* offline -> Cache */ } }
     const ev = await IDB.get('events', eventId);
     if (!ev) { main.innerHTML = '<div class="card">Termin nicht gefunden.</div>'; return; }
     const [members, helpers, mAtt, hAtt] = await Promise.all([
@@ -165,7 +175,7 @@
     ]);
     const mMap = new Map(mAtt.map((a) => [a.member_id, a]));
     const hMap = new Map(hAtt.map((a) => [a.helper_id, a]));
-    const canEditEvent = state.user.role === 'admin' || ev.created_by === state.user.id;
+    const canEditEvent = state.user.role === 'admin' || (!ev.closed && ev.created_by === state.user.id);
     const isAdmin = state.user.role === 'admin';
 
     // Helfer dürfen nur die EIGENE Präsenz eintragen -> nur sich selbst anzeigen.
@@ -173,18 +183,32 @@
     const helperLabel = isAdmin ? `Jugendhelfer (${visibleHelpers.length})` : 'Eigene Präsenz';
     const part = state.params.part === 'helper' ? 'helper' : 'member';
 
+    // Erfasser der Mitglieder-Präsenz (frühester Eintrag). Solange offen, dürfen
+    // nur dieser Helfer + Admin die Mitglieder-Präsenz ändern.
+    const recorder = mAtt.length
+      ? [...mAtt].sort((a, b) => (a.entered_at || '').localeCompare(b.entered_at || ''))[0].entered_by
+      : null;
+    const memberEditable = isAdmin || (!ev.closed && (recorder === null || recorder === state.user.id));
+    const helperEditable = isAdmin || !ev.closed;
+
+    const memberNote = memberEditable ? '' : (ev.closed
+      ? '<div class="lock-note">🔒 Termin abgeschlossen – Änderungen nur durch die Leitung.</div>'
+      : '<div class="lock-note">🔒 Bereits von einem anderen Helfer erfasst – Korrekturen nur durch die Leitung.</div>');
+    const helperNote = helperEditable ? '' : '<div class="lock-note">🔒 Termin abgeschlossen – Stunden nur durch die Leitung änderbar.</div>';
+
     main.innerHTML = `
       <div class="page-head">
         <button class="btn btn-ghost" id="back">‹ Zurück</button>
         ${canEditEvent ? '<button class="btn btn-outline" id="edit-event">Bearbeiten</button>' : ''}
       </div>
       <div class="card event-summary">
-        <div class="event-date"><span class="event-day">${fmtDate(ev.date)}</span><span class="badge badge-type">${esc(ev.type)}</span></div>
+        <div class="event-date"><span class="event-day">${fmtDate(ev.date)}</span><span class="badge badge-type">${esc(typeLabel(ev))}</span>${closedBadge(ev)}</div>
         <div class="event-meta">
           ${ev.start_time ? `🕒 ${esc(ev.start_time)}${ev.end_time ? '–' + esc(ev.end_time) : ''}` : ''}
           ${ev.location ? ` · 📍 ${esc(ev.location)}` : ''}
         </div>
         ${ev.note ? `<div class="event-note">${esc(ev.note)}</div>` : ''}
+        ${isAdmin ? `<button class="btn ${ev.closed ? 'btn-outline' : 'btn-danger'} btn-close" id="toggle-close">${ev.closed ? '🔓 Termin wieder öffnen' : '🔒 Termin abschließen'}</button>` : ''}
       </div>
 
       <div class="card att-switch">
@@ -197,17 +221,33 @@
       </div>
 
       <div class="list attendance-list ${part === 'member' ? '' : 'hidden'}" id="member-list">
-        ${members.map((m) => attendanceRow('member', m.id, `${m.last_name}, ${m.first_name}`, mMap.get(m.id))).join('')
+        ${memberNote}
+        ${members.map((m) => attendanceRow('member', m.id, `${m.last_name}, ${m.first_name}`, mMap.get(m.id), memberEditable)).join('')
           || '<div class="empty">Keine aktiven Mitglieder.</div>'}
       </div>
 
       <div class="list attendance-list ${part === 'helper' ? '' : 'hidden'}" id="helper-list">
-        ${visibleHelpers.map((h) => helperRow(h, hMap.get(h.id), eventDurationHours(ev))).join('')
+        ${helperNote}
+        ${visibleHelpers.map((h) => helperRow(h, hMap.get(h.id), eventDurationHours(ev), helperEditable)).join('')
           || '<div class="empty">Keine Jugendhelfer.</div>'}
       </div>`;
 
     $('#back').onclick = () => navigate('events');
     if (canEditEvent) $('#edit-event').onclick = () => eventForm(ev);
+
+    // Admin: Termin abschließen / wieder öffnen
+    const toggle = $('#toggle-close');
+    if (toggle) toggle.onclick = async () => {
+      if (!navigator.onLine) { toast('Aktion benötigt eine Verbindung', 'error'); return; }
+      const closing = !ev.closed;
+      if (closing && !confirm('Termin abschließen? Helfer können danach keine Präsenz/Stunden mehr ändern.')) return;
+      try {
+        await API.post(`/events/${eventId}/${closing ? 'close' : 'reopen'}`);
+        await Sync.bootstrap();
+        toast(closing ? 'Termin abgeschlossen' : 'Termin wieder geöffnet', 'success');
+        render();
+      } catch (err) { toast(err.message, 'error'); }
+    };
 
     // Umschalten zwischen Mitglieder- und Helfer-Erfassung
     $('#att-part').onchange = (e) => {
@@ -218,8 +258,8 @@
       $('#main-content').scrollTop = 0;
     };
 
-    // Status-Buttons Mitglieder
-    main.querySelectorAll('#member-list .status-btn').forEach((btn) => {
+    // Status-Buttons Mitglieder (nur wenn erlaubt)
+    if (memberEditable) main.querySelectorAll('#member-list .status-btn').forEach((btn) => {
       btn.onclick = async () => {
         const memberId = Number(btn.closest('[data-row]').dataset.row);
         await Sync.saveMemberAttendance({
@@ -229,34 +269,35 @@
       };
     });
 
-    // Status-Buttons + Stunden Helfer
-    main.querySelectorAll('#helper-list .status-btn').forEach((btn) => {
-      btn.onclick = async () => {
-        const row = btn.closest('[data-row]');
-        const helperId = Number(row.dataset.row);
-        const hoursInput = row.querySelector('.hours-input');
-        const hours = btn.dataset.status === 'present' ? parseFloat(hoursInput.value) || 0 : 0;
-        await Sync.saveHelperAttendance({
-          event_id: eventId, helper_id: helperId, status: btn.dataset.status, hours, userId: state.user.id,
-        });
-        markRow(btn, btn.dataset.status);
-        row.querySelector('.hours-wrap').classList.toggle('hidden', btn.dataset.status !== 'present');
-      };
-    });
-    // Stunden-Änderung speichern (bei bereits anwesend markierten Helfern)
-    main.querySelectorAll('#helper-list .hours-input').forEach((inp) => {
-      inp.onchange = async () => {
-        const row = inp.closest('[data-row]');
-        const active = row.querySelector('.status-btn.active');
-        if (active && active.dataset.status === 'present') {
+    // Status-Buttons + Stunden Helfer (nur wenn erlaubt)
+    if (helperEditable) {
+      main.querySelectorAll('#helper-list .status-btn').forEach((btn) => {
+        btn.onclick = async () => {
+          const row = btn.closest('[data-row]');
+          const helperId = Number(row.dataset.row);
+          const hoursInput = row.querySelector('.hours-input');
+          const hours = btn.dataset.status === 'present' ? parseFloat(hoursInput.value) || 0 : 0;
           await Sync.saveHelperAttendance({
-            event_id: eventId, helper_id: Number(row.dataset.row), status: 'present',
-            hours: parseFloat(inp.value) || 0, userId: state.user.id,
+            event_id: eventId, helper_id: helperId, status: btn.dataset.status, hours, userId: state.user.id,
           });
-          toast('Stunden gespeichert');
-        }
-      };
-    });
+          markRow(btn, btn.dataset.status);
+          row.querySelector('.hours-wrap').classList.toggle('hidden', btn.dataset.status !== 'present');
+        };
+      });
+      main.querySelectorAll('#helper-list .hours-input').forEach((inp) => {
+        inp.onchange = async () => {
+          const row = inp.closest('[data-row]');
+          const active = row.querySelector('.status-btn.active');
+          if (active && active.dataset.status === 'present') {
+            await Sync.saveHelperAttendance({
+              event_id: eventId, helper_id: Number(row.dataset.row), status: 'present',
+              hours: parseFloat(inp.value) || 0, userId: state.user.id,
+            });
+            toast('Stunden gespeichert');
+          }
+        };
+      });
+    }
   }
 
   function markRow(btn, status) {
@@ -294,36 +335,36 @@
     document.querySelectorAll('#helper-list .attendance-row').forEach((row) => setDot(row, hp.has(Number(row.dataset.row))));
   }
 
-  function statusButtons(current) {
+  function statusButtons(current, disabled) {
     return `<div class="status-group">
       ${Object.entries(STATUS).map(([key, s]) => `
-        <button class="status-btn status-${s.cls} ${current === key ? 'active' : ''}" data-status="${key}">${s.label}</button>
+        <button class="status-btn status-${s.cls} ${current === key ? 'active' : ''}" data-status="${key}" ${disabled ? 'disabled' : ''}>${s.label}</button>
       `).join('')}
     </div>`;
   }
 
-  function attendanceRow(kind, id, name, att) {
+  function attendanceRow(kind, id, name, att, editable = true) {
     const status = att?.status;
     const pending = att?._pending;
     return `
-      <div class="card attendance-row ${status || 'unset'}" data-row="${id}" data-kind="${kind}">
+      <div class="card attendance-row ${status || 'unset'} ${editable ? '' : 'locked'}" data-row="${id}" data-kind="${kind}">
         <div class="att-name">${esc(name)} ${pending ? '<span class="pending-dot" title="lokal gespeichert, nicht synchronisiert">●</span>' : ''}</div>
-        ${statusButtons(status)}
+        ${statusButtons(status, !editable)}
       </div>`;
   }
 
-  function helperRow(h, att, defaultHours) {
+  function helperRow(h, att, defaultHours, editable = true) {
     const status = att?.status;
     const pending = att?._pending;
     const hours = att?.hours ?? defaultHours;
     const showHours = status === 'present' || !status;
     return `
-      <div class="card attendance-row ${status || 'unset'}" data-row="${h.id}" data-kind="helper">
+      <div class="card attendance-row ${status || 'unset'} ${editable ? '' : 'locked'}" data-row="${h.id}" data-kind="helper">
         <div class="att-name">${esc(h.display_name)} ${pending ? '<span class="pending-dot" title="nicht synchronisiert">●</span>' : ''}</div>
-        ${statusButtons(status)}
+        ${statusButtons(status, !editable)}
         <div class="hours-wrap ${showHours ? '' : 'hidden'}">
           <label class="hours-label">Stunden
-            <input type="number" class="hours-input" min="0" step="0.25" value="${hours}" />
+            <input type="number" class="hours-input" min="0" step="0.25" value="${hours}" ${editable ? '' : 'disabled'} />
           </label>
         </div>
       </div>`;
@@ -340,7 +381,10 @@
           <label>Ende<input type="time" name="end_time" value="${ev?.end_time || '19:30'}" /></label>
         </div>
         <label>Art
-          <select name="type">${EVENT_TYPES.map((t) => `<option ${ev?.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+          <select name="type" id="ev-type">${EVENT_TYPES.map((t) => `<option ${ev?.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
+        </label>
+        <label id="ev-detail-wrap" class="${ev?.type === 'Sonstiges' ? '' : 'hidden'}">Beschreibung (bei „Sonstiges")
+          <input type="text" name="type_detail" value="${esc(ev?.type_detail || '')}" placeholder="Was habt ihr gemacht?" />
         </label>
         <label>Ort<input type="text" name="location" value="${esc(ev?.location || '')}" /></label>
         <label>Notiz<textarea name="note" rows="2">${esc(ev?.note || '')}</textarea></label>
@@ -350,10 +394,17 @@
         </div>
       </form>`;
     openModal(isEdit ? 'Termin bearbeiten' : 'Neuer Termin', body, (root, close) => {
+      // Beschreibungsfeld nur bei "Sonstiges" zeigen
+      const typeSel = root.querySelector('#ev-type');
+      const detailWrap = root.querySelector('#ev-detail-wrap');
+      typeSel.onchange = () => detailWrap.classList.toggle('hidden', typeSel.value !== 'Sonstiges');
       root.querySelector('#event-form').onsubmit = async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
         const payload = Object.fromEntries(fd.entries());
+        if (payload.type === 'Sonstiges' && !String(payload.type_detail || '').trim()) {
+          toast('Bitte bei „Sonstiges" kurz beschreiben, was gemacht wurde', 'error'); return;
+        }
         try {
           if (!navigator.onLine) { toast('Termine benötigen eine Verbindung', 'error'); return; }
           if (isEdit) await API.put('/events/' + ev.id, payload);
@@ -749,6 +800,13 @@
     $('#logout-btn').onclick = () => { if (confirm('Abmelden? Nicht synchronisierte Einträge gehen dabei verloren, wenn sie noch nicht hochgeladen wurden.')) logout(); };
 
     window.addEventListener('auth-expired', () => { toast('Sitzung abgelaufen', 'error'); showLogin(); });
+
+    // Vom Server abgelehnte Änderungen (z.B. gesperrter Termin) melden + Ansicht auffrischen
+    window.addEventListener('sync-rejected', (e) => {
+      const msgs = e.detail || [];
+      if (msgs.length) toast(msgs[0], 'error');
+      if (state.view === 'event') renderEventDetail($('#main-content'), state.params.id);
+    });
 
     // Gespeicherte Sitzung wiederherstellen
     const token = await IDB.getMeta('token');

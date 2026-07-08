@@ -4,38 +4,47 @@ import { requireAuth, requireAdmin } from '../auth.js';
 
 const router = Router();
 
-const EDIT_WINDOW_HOURS = Number(process.env.EDIT_WINDOW_HOURS || 24);
 const VALID_STATUS = ['present', 'excused', 'unexcused'];
 
-function withinWindow(iso) {
-  if (!iso) return false;
-  const t = new Date(iso.includes('T') ? iso : iso + 'Z').getTime();
-  return Date.now() - t <= EDIT_WINDOW_HOURS * 3600 * 1000;
+// Ermittelt den Helfer, der die Mitglieder-Präsenz eines Termins zuerst erfasst
+// hat ("Erfasser"). Solange der Termin offen ist, dürfen nur dieser Helfer und
+// der Admin die Mitglieder-Präsenz ändern.
+function memberRecorder(eventId) {
+  const row = db.prepare(
+    'SELECT entered_by FROM attendance_members WHERE event_id = ? ORDER BY entered_at ASC, rowid ASC LIMIT 1'
+  ).get(eventId);
+  return row ? row.entered_by : null;
 }
 
-// Prüft, ob der Nutzer einen bestehenden Eintrag überschreiben darf.
-// Admin darf immer; Helfer nur den eigenen Eintrag innerhalb des Zeitfensters.
-function mayOverwrite(user, existing) {
-  if (user.role === 'admin') return true;
-  if (!existing) return true; // Neuanlage ist immer erlaubt
-  return existing.entered_by === user.id && withinWindow(existing.entered_at);
+function getEvent(id) {
+  return db.prepare('SELECT id, closed FROM events WHERE id = ?').get(id);
 }
 
-// Upsert eines Mitglieder-Präsenz-Eintrags mit Last-Write-Wins
+// Upsert eines Mitglieder-Präsenz-Eintrags mit Last-Write-Wins + Rechteprüfung
 function upsertMember(user, rec) {
   if (!rec.id || !rec.event_id || !rec.member_id || !VALID_STATUS.includes(rec.status)) {
     return { id: rec.id, ok: false, error: 'Ungültiger Datensatz' };
   }
+  const ev = getEvent(rec.event_id);
+  if (!ev) return { id: rec.id, ok: false, error: 'Termin nicht gefunden' };
+
   const existing = db.prepare('SELECT * FROM attendance_members WHERE id = ? OR (event_id = ? AND member_id = ?)')
     .get(rec.id, rec.event_id, rec.member_id);
   const updated_at = rec.updated_at || new Date().toISOString();
 
-  // Last-Write-Wins: neuere Änderung gewinnt
+  // Last-Write-Wins: neuere Änderung gewinnt (ältere ohne Wirkung überspringen)
   if (existing && existing.updated_at && updated_at < existing.updated_at) {
     return { id: existing.id, ok: true, skipped: 'älterer Stand', server: existing };
   }
-  if (!mayOverwrite(user, existing)) {
-    return { id: rec.id, ok: false, error: 'Bearbeitungsfenster abgelaufen (nur Admin)' };
+
+  // Rechte: Admin immer. Helfer nur wenn Termin offen UND (noch niemand erfasst
+  // hat ODER er selbst der Erfasser ist).
+  if (user.role !== 'admin') {
+    if (ev.closed) return { id: rec.id, ok: false, error: 'Termin ist abgeschlossen – Änderung nur durch Admin' };
+    const recorder = memberRecorder(rec.event_id);
+    if (recorder !== null && recorder !== user.id) {
+      return { id: rec.id, ok: false, error: 'Mitglieder-Präsenz wurde bereits von einem anderen Helfer erfasst' };
+    }
   }
 
   if (existing) {
@@ -58,9 +67,16 @@ function upsertHelper(user, rec) {
   if (!rec.id || !rec.event_id || !rec.helper_id || !VALID_STATUS.includes(rec.status)) {
     return { id: rec.id, ok: false, error: 'Ungültiger Datensatz' };
   }
-  // Helfer dürfen nur ihre EIGENE Präsenz erfassen; Admin darf für alle eintragen.
-  if (user.role !== 'admin' && rec.helper_id !== user.id) {
-    return { id: rec.id, ok: false, error: 'Helfer dürfen nur die eigene Präsenz eintragen' };
+  const ev = getEvent(rec.event_id);
+  if (!ev) return { id: rec.id, ok: false, error: 'Termin nicht gefunden' };
+  // Helfer dürfen nur die EIGENE Präsenz erfassen; Admin darf für alle eintragen.
+  if (user.role !== 'admin') {
+    if (rec.helper_id !== user.id) {
+      return { id: rec.id, ok: false, error: 'Helfer dürfen nur die eigene Präsenz eintragen' };
+    }
+    if (ev.closed) {
+      return { id: rec.id, ok: false, error: 'Termin ist abgeschlossen – Stundenänderung nur durch Admin' };
+    }
   }
   const existing = db.prepare('SELECT * FROM attendance_helpers WHERE id = ? OR (event_id = ? AND helper_id = ?)')
     .get(rec.id, rec.event_id, rec.helper_id);
@@ -69,9 +85,6 @@ function upsertHelper(user, rec) {
 
   if (existing && existing.updated_at && updated_at < existing.updated_at) {
     return { id: existing.id, ok: true, skipped: 'älterer Stand', server: existing };
-  }
-  if (!mayOverwrite(user, existing)) {
-    return { id: rec.id, ok: false, error: 'Bearbeitungsfenster abgelaufen (nur Admin)' };
   }
 
   if (existing) {

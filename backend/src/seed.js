@@ -41,7 +41,7 @@ function seedDemo(adminId) {
       .run(f, l, b, ec, ep).lastInsertRowid);
 
   const eventId = db.prepare(
-    "INSERT INTO events (date, start_time, end_time, type, location, created_by) VALUES (?, '18:00', '19:30', 'Übung', 'Feuerwehrhaus', ?)"
+    "INSERT INTO events (date, start_time, end_time, type, location, created_by) VALUES (?, '18:00', '19:30', 'Praktische Übung', 'Feuerwehrhaus', ?)"
   ).run(new Date().toISOString().slice(0, 10), helperId).lastInsertRowid;
 
   const uuid = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));

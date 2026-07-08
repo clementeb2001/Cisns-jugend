@@ -127,6 +127,7 @@ body {
 .event-day { font-weight: 700; font-size: 1.05rem; }
 .badge { background: var(--card-2); border: 1px solid var(--border); color: var(--muted); font-size: .72rem; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
 .badge-type { background: #fef2f2; border-color: #fecaca; color: var(--red); }
+.badge-closed { background: #f1f5f9; border-color: #cbd5e1; color: #475569; }
 .event-meta { color: var(--muted); font-size: .88rem; margin-top: 6px; }
 .event-note { margin-top: 6px; font-size: .9rem; }
 .event-summary { margin-bottom: 4px; }
@@ -146,6 +147,11 @@ body {
   transition: .12s; min-height: 48px;
 }
 .status-btn:active { transform: scale(.96); }
+.status-btn:disabled { cursor: not-allowed; opacity: .5; }
+.status-btn:disabled:hover { border-color: var(--border); color: var(--muted); }
+.attendance-row.locked { opacity: .92; }
+.lock-note { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 10px; padding: 10px 12px; font-size: .85rem; font-weight: 600; margin-bottom: 10px; }
+.btn-close { width: 100%; margin-top: 12px; }
 .status-present.active { background: var(--green); border-color: var(--green); color: #fff; }
 .status-excused.active { background: var(--amber); border-color: var(--amber); color: #fff; }
 .status-unexcused.active { background: var(--rose); border-color: var(--rose); color: #fff; }

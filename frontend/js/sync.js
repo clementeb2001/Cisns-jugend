@@ -41,14 +41,24 @@ const Sync = (() => {
       attendance_helpers: hPending.map(strip),
     });
 
-    // Ergebnisse verarbeiten: erfolgreiche Einträge als synchronisiert markieren
-    for (const r of res.attendance_members || []) {
-      if (r.ok && r.server) await IDB.put('attendance_members', { ...r.server, _pending: false });
+    // Ergebnisse verarbeiten:
+    //  - erfolgreich  -> als synchronisiert markieren
+    //  - abgelehnt    -> lokalen Versuch verwerfen (kein endloses Retry) und melden
+    const rejected = [];
+    const handle = async (store, r) => {
+      if (r.ok && r.server) { await IDB.put(store, { ...r.server, _pending: false }); }
+      else if (r.ok === false) {
+        if (r.id) await IDB.del(store, r.id);
+        rejected.push(r.error || 'Änderung nicht möglich');
+      }
+    };
+    for (const r of res.attendance_members || []) await handle('attendance_members', r);
+    for (const r of res.attendance_helpers || []) await handle('attendance_helpers', r);
+    if (rejected.length) {
+      // dem UI melden (eindeutige Meldungen)
+      window.dispatchEvent(new CustomEvent('sync-rejected', { detail: [...new Set(rejected)] }));
     }
-    for (const r of res.attendance_helpers || []) {
-      if (r.ok && r.server) await IDB.put('attendance_helpers', { ...r.server, _pending: false });
-    }
-    return { ok: true, pushed: mPending.length + hPending.length };
+    return { ok: true, pushed: mPending.length + hPending.length, rejected: rejected.length };
   }
 
   // Kompletter Sync-Durchlauf: erst lokale Änderungen hochladen, dann neu laden

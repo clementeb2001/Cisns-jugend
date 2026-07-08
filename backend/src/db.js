@@ -27,5 +27,7 @@ function ensureColumn(table, column, definition) {
 }
 ensureColumn('members', 'emergency_contact', 'TEXT');
 ensureColumn('members', 'emergency_phone', 'TEXT');
+ensureColumn('events', 'type_detail', 'TEXT');
+ensureColumn('events', 'closed', 'INTEGER NOT NULL DEFAULT 0');
 
 export default db;

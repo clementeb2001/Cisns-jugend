@@ -31,16 +31,18 @@ CREATE TABLE IF NOT EXISTS members (
 
 -- Termine
 CREATE TABLE IF NOT EXISTS events (
-  id         INTEGER PRIMARY KEY AUTOINCREMENT,
-  date       TEXT    NOT NULL,           -- ISO-Datum YYYY-MM-DD
-  start_time TEXT,                       -- HH:MM
-  end_time   TEXT,                       -- HH:MM
-  type       TEXT    NOT NULL DEFAULT 'Übung',  -- Übung, Ausbildung, Einsatz, Sonstiges ...
-  location   TEXT,
-  note       TEXT,
-  created_by INTEGER REFERENCES users(id),
-  created_at TEXT    NOT NULL DEFAULT (datetime('now')),
-  updated_at TEXT    NOT NULL DEFAULT (datetime('now'))
+  id          INTEGER PRIMARY KEY AUTOINCREMENT,
+  date        TEXT    NOT NULL,           -- ISO-Datum YYYY-MM-DD
+  start_time  TEXT,                       -- HH:MM
+  end_time    TEXT,                       -- HH:MM
+  type        TEXT    NOT NULL DEFAULT 'Praktische Übung',  -- Praktische Übung, Theorie, Freizeit, Sonstiges
+  type_detail TEXT,                       -- freie Beschreibung, v.a. bei "Sonstiges"
+  location    TEXT,
+  note        TEXT,
+  closed      INTEGER NOT NULL DEFAULT 0, -- vom Admin abgeschlossen -> keine Helfer-Änderungen mehr
+  created_by  INTEGER REFERENCES users(id),
+  created_at  TEXT    NOT NULL DEFAULT (datetime('now')),
+  updated_at  TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 -- Präsenz-Einträge für Mitglieder (ohne Stunden)
