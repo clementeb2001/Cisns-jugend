@@ -1,0 +1,50 @@
+# Docker Compose für den Betrieb auf dem Synology DS225+ NAS.
+# Der bereits vorhandene Reverse Proxy (Web Station) leitet HTTPS-Traffic
+# (Let's Encrypt) auf den hier veröffentlichten Port 3000 weiter.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: jugendfeuerwehr-praesenz:latest
+    container_name: jf-praesenz
+    restart: unless-stopped
+    ports:
+      - "3000:3000"          # Reverse Proxy nach hier weiterleiten
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      # WICHTIG: In .env ein starkes JWT_SECRET setzen!
+      JWT_SECRET: "${JWT_SECRET:?Bitte JWT_SECRET in .env setzen}"
+      JWT_EXPIRES_IN: "30d"
+      EDIT_WINDOW_HOURS: "24"
+      DB_PATH: /data/jugendfeuerwehr.db
+      # Initialer Admin (nur beim ersten Seed relevant)
+      ADMIN_USERNAME: "${ADMIN_USERNAME:-admin}"
+      ADMIN_PIN: "${ADMIN_PIN:-1234}"
+      SEED_DEMO: "${SEED_DEMO:-0}"
+    volumes:
+      - jf-data:/data        # persistente SQLite-DB auf dem NAS
+    # Beim ersten Start Admin anlegen, danach normal starten:
+    #   docker compose run --rm app node src/seed.js
+
+  # Tägliches Backup der SQLite-Datenbank (dump ins Backup-Volume)
+  backup:
+    image: jugendfeuerwehr-praesenz:latest
+    container_name: jf-backup
+    restart: unless-stopped
+    depends_on:
+      - app
+    entrypoint: ["/bin/sh", "/backup.sh"]
+    environment:
+      DB_PATH: /data/jugendfeuerwehr.db
+      BACKUP_DIR: /backups
+      BACKUP_KEEP_DAYS: "30"
+    volumes:
+      - jf-data:/data:ro
+      - ./backups:/backups
+      - ./scripts/backup.sh:/backup.sh:ro
+
+volumes:
+  jf-data:

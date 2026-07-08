@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#b91c1c"/>
+  <g transform="translate(256 268)">
+    <circle r="150" fill="#7f1d1d"/>
+    <text x="0" y="55" font-size="200" text-anchor="middle" font-family="sans-serif">🚒</text>
+  </g>
+  <text x="256" y="470" font-size="60" fill="#ffffff" text-anchor="middle" font-family="sans-serif" font-weight="bold">JF</text>
+</svg>
