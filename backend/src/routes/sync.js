@@ -108,6 +108,12 @@ router.post('/push', requireAuth, (req, res) => {
   const memberRecs = Array.isArray(req.body?.attendance_members) ? req.body.attendance_members : [];
   const helperRecs = Array.isArray(req.body?.attendance_helpers) ? req.body.attendance_helpers : [];
 
+  // Obergrenze pro Sync-Push, um übergroße Transaktionen (leichter DoS) zu vermeiden
+  const MAX_BATCH = 1000;
+  if (memberRecs.length > MAX_BATCH || helperRecs.length > MAX_BATCH) {
+    return res.status(413).json({ error: 'Zu viele Einträge pro Sync (max. 1000 je Liste)' });
+  }
+
   const results = { attendance_members: [], attendance_helpers: [] };
   const tx = db.transaction(() => {
     for (const r of memberRecs) results.attendance_members.push(upsertMember(req.user, r));

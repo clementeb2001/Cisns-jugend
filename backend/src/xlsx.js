@@ -16,6 +16,11 @@ function crc32(buf) {
 const escXml = (s) => String(s ?? '').replace(/[&<>"']/g, (c) =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&apos;' }[c]));
 
+// Schutz gegen Formel-/CSV-Injection: Textzellen, die mit = + - @ (auch nach
+// führendem Tab/Zeilenumbruch) beginnen, mit einem ' neutralisieren, damit Excel
+// sie nicht als Formel interpretiert.
+const neutralize = (s) => (/^[\t\r\n ]*[=+\-@]/.test(String(s ?? '')) ? "'" + s : String(s ?? ''));
+
 const colName = (n) => {
   let s = '';
   n += 1;
@@ -31,7 +36,7 @@ function sheetXml(rows) {
       if (typeof val === 'number' && Number.isFinite(val)) {
         return `<c r="${ref}"><v>${val}</v></c>`;
       }
-      return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escXml(val)}</t></is></c>`;
+      return `<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${escXml(neutralize(val))}</t></is></c>`;
     }).join('');
     return `<row r="${r + 1}">${cells}</row>`;
   }).join('');

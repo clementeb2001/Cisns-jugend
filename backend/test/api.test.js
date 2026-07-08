@@ -268,3 +268,34 @@ test('Mitglied: Notfallkontakt wird gespeichert und ausgeliefert', async () => {
   const found = list.find((m) => m.id === created.id);
   assert.equal(found.emergency_phone, '0170 1234567');
 });
+
+test('Login-Rate-Limit: nach zu vielen Fehlversuchen 429', async () => {
+  // Bewusst ein nicht existierender Nutzer, damit echte Konten nicht gesperrt werden
+  let last;
+  for (let i = 0; i < 8; i++) {
+    last = await api('POST', '/api/auth/login', { body: { username: 'brute-target', pin: '0000' } });
+    assert.equal(last.status, 401);
+  }
+  const blocked = await api('POST', '/api/auth/login', { body: { username: 'brute-target', pin: '0000' } });
+  assert.equal(blocked.status, 429);
+});
+
+test('Deaktiviertes Konto: bestehendes Token wird sofort abgewiesen', async () => {
+  db.prepare("INSERT INTO users (username, pin_hash, role, display_name) VALUES ('temp', ?, 'helper', 'Temp')").run(hashPin('4321'));
+  const token = (await (await api('POST', '/api/auth/login', { body: { username: 'temp', pin: '4321' } })).json()).token;
+  assert.equal((await api('GET', '/api/members', { token })).status, 200);
+  // Konto deaktivieren -> Token muss ab sofort ungültig sein (Prüfung pro Anfrage)
+  db.prepare("UPDATE users SET active = 0 WHERE username = 'temp'").run();
+  assert.equal((await api('GET', '/api/members', { token })).status, 401);
+});
+
+test('XLSX-Writer neutralisiert Formel-Injection', async () => {
+  const { buildXlsx } = await import('../src/xlsx.js');
+  const buf = buildXlsx([{ name: 'T', rows: [['Kommentar'], ['=HYPERLINK("http://evil")'], ['+1'], ['harmlos']] }]);
+  const sheet = Buffer.from(buf).toString('utf8');
+  // Das vorangestellte ' wird XML-escaped zu &apos; (Excel zeigt es als Text-Präfix)
+  assert.ok(sheet.includes('&apos;=HYPERLINK'), 'führendes = muss neutralisiert werden');
+  assert.ok(sheet.includes('&apos;+1'), 'führendes + muss neutralisiert werden');
+  assert.ok(sheet.includes('harmlos'), 'normaler Text bleibt erhalten');
+  assert.ok(!sheet.includes('&apos;harmlos'), 'harmloser Text wird NICHT neutralisiert');
+});
