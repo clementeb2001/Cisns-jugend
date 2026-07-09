@@ -1,11 +1,15 @@
 # Docker Compose für den Betrieb auf dem Synology DS225+ NAS.
-# Der bereits vorhandene Reverse Proxy (Web Station) leitet HTTPS-Traffic
-# (Let's Encrypt) auf den hier veröffentlichten Port 3000 weiter.
+# Die App wird über einen Reverse Proxy / Cloudflare Tunnel per HTTPS erreichbar
+# gemacht (leitet auf Port 3000).
 #
-# Hinweis: Die Konfiguration wird über die Datei .env (im selben Ordner)
-# per env_file in den Container geladen. So funktioniert es auch im Synology
-# Container Manager, der Variablen-Ersetzung (${VAR}) beim Erstellen nicht
-# unterstützt. Die .env MUSS vorhanden sein (siehe .env.example).
+# Konfiguration kommt aus der Datei .env (im selben Ordner) per env_file – so
+# funktioniert es auch im Synology Container Manager, der ${VAR}-Ersetzung beim
+# Erstellen nicht unterstützt. Die .env MUSS vorhanden sein (siehe .env.example).
+#
+# Backup: Die Datenbank liegt im dauerhaften Volume "jf-data" (übersteht Neubau
+# und Neustart). Für ein zusätzliches Off-Device-Backup empfiehlt sich Synology
+# Hyper Backup (sichert auch Docker-Volumes) – bewusst kein Backup-Container mehr,
+# da dessen Bind-Mount auf manchen NAS den Start blockiert hat.
 
 services:
   app:
@@ -16,33 +20,16 @@ services:
     container_name: jf-praesenz
     restart: unless-stopped
     ports:
-      - "3000:3000"          # Reverse Proxy nach hier weiterleiten
+      - "3000:3000"          # Reverse Proxy / Cloudflare Tunnel zeigt hierhin
     env_file:
-      - .env                 # JWT_SECRET, ADMIN_USERNAME, ADMIN_PIN, ... kommen aus .env
+      - .env                 # JWT_SECRET, ADMIN_USERNAME, ADMIN_PIN, ... aus .env
     environment:
       NODE_ENV: production
       PORT: "3000"
       DB_PATH: /data/jugendfeuerwehr.db
       FRONTEND_DIR: /frontend
     volumes:
-      - jf-data:/data        # persistente SQLite-DB auf dem NAS
-
-  # Tägliches Backup der SQLite-Datenbank (dump ins Backup-Verzeichnis)
-  backup:
-    image: jugendfeuerwehr-praesenz:latest
-    container_name: jf-backup
-    restart: unless-stopped
-    depends_on:
-      - app
-    entrypoint: ["/bin/sh", "/backup.sh"]
-    environment:
-      DB_PATH: /data/jugendfeuerwehr.db
-      BACKUP_DIR: /backups
-      BACKUP_KEEP_DAYS: "30"
-    volumes:
-      - jf-data:/data:ro
-      - ./backups:/backups
-      - ./scripts/backup.sh:/backup.sh:ro
+      - jf-data:/data        # persistente SQLite-DB (bleibt über Neubauten erhalten)
 
 volumes:
   jf-data:
