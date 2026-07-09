@@ -146,9 +146,26 @@ test('Statistik zählt Status korrekt', async () => {
   const m = await (await api('GET', '/api/stats/members?from=2026-01-01&to=2026-12-31', { token: adminToken })).json();
   assert.equal(m[0].excused, 1);
   assert.equal(m[0].present, 0);
+  // Betreuer-Statistik enthält Helfer UND Admin -> gezielt den Helfer prüfen
   const h = await (await api('GET', '/api/stats/helpers?from=2026-01-01&to=2026-12-31', { token: adminToken })).json();
-  assert.equal(h[0].hours, 3);
-  assert.equal(h[0].present, 1);
+  const h1 = h.find((x) => x.name === 'Helfer Eins');
+  assert.equal(h1.hours, 3);
+  assert.equal(h1.present, 1);
+  // Der Admin taucht in der Betreuer-Statistik ebenfalls auf
+  assert.ok(h.some((x) => x.name === 'Admin'));
+});
+
+test('Admin kann eigene Präsenz + Stunden erfassen (als Betreuer)', async () => {
+  // Admin trägt für sich selbst (helper_id = eigene id) Präsenz mit Stunden ein
+  const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").get().id;
+  const res = await api('POST', '/api/sync/push', {
+    token: adminToken,
+    body: { attendance_helpers: [{ id: crypto.randomUUID(), event_id: eventId, helper_id: adminId, status: 'present', hours: 2.5, updated_at: new Date().toISOString() }] },
+  });
+  assert.equal((await res.json()).attendance_helpers[0].server.hours, 2.5);
+  // erscheint in der Betreuer-Statistik mit Stunden
+  const h = await (await api('GET', '/api/stats/helpers?from=2026-01-01&to=2026-12-31', { token: adminToken })).json();
+  assert.equal(h.find((x) => x.name === 'Admin').hours, 2.5);
 });
 
 test('Mitglieder-Präsenz: fremder Helfer gesperrt, Erfasser + Admin erlaubt', async () => {
@@ -231,7 +248,7 @@ test('Excel-Export: nur Admin, valides XLSX (ZIP mit erwarteten Teilen)', async 
   // 6 Blätter: Mitglieder (Übersicht/nach Art/Detail) + Helfer (dito)
   for (let i = 1; i <= 6; i++) assert.ok(text.includes(`xl/worksheets/sheet${i}.xml`), `sheet${i} fehlt`);
   assert.ok(text.includes('Mitglieder'));
-  assert.ok(text.includes('Helfer'));
+  assert.ok(text.includes('Betreuer'));
 });
 
 test('Helfer darf keine fremde Helfer-Präsenz eintragen (nur eigene)', async () => {

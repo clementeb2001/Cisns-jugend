@@ -50,9 +50,9 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
     { name: 'Mitglieder Übersicht', rows: overviewSheet(mData, false) },
     { name: 'Mitglieder nach Art', rows: byTypeSheet(mData, false) },
     { name: 'Mitglieder Detail', rows: detailSheet(mData, false) },
-    { name: 'Helfer Übersicht', rows: overviewSheet(hData, true) },
-    { name: 'Helfer nach Art', rows: byTypeSheet(hData, true) },
-    { name: 'Helfer Detail', rows: detailSheet(hData, true) },
+    { name: 'Betreuer Übersicht', rows: overviewSheet(hData, true) },
+    { name: 'Betreuer nach Art', rows: byTypeSheet(hData, true) },
+    { name: 'Betreuer Detail', rows: detailSheet(hData, true) },
   ]);
 
   const fname = `praesenz_${from || 'alle'}_${to || 'alle'}.xlsx`;
@@ -71,7 +71,7 @@ function overviewSheet(data, withHours) {
     if (withHours && r.status === 'present') o.hours += Number(r.hours) || 0;
   }
   const header = withHours
-    ? ['Helfer', 'Stunden gesamt', 'Anwesend', 'Entschuldigt', 'Unentschuldigt', 'Termine gesamt', 'Quote %']
+    ? ['Betreuer', 'Stunden gesamt', 'Anwesend', 'Entschuldigt', 'Unentschuldigt', 'Termine gesamt', 'Quote %']
     : ['Mitglied', 'Anwesend', 'Entschuldigt', 'Unentschuldigt', 'Termine gesamt', 'Quote %'];
   const rows = [header];
   for (const [name, o] of [...map].sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -94,7 +94,7 @@ function byTypeSheet(data, withHours) {
     if (withHours && r.status === 'present') o.hours += Number(r.hours) || 0;
   }
   const header = withHours
-    ? ['Helfer', 'Terminart', 'Anwesend', 'Entschuldigt', 'Unentschuldigt', 'Stunden']
+    ? ['Betreuer', 'Terminart', 'Anwesend', 'Entschuldigt', 'Unentschuldigt', 'Stunden']
     : ['Mitglied', 'Terminart', 'Anwesend', 'Entschuldigt', 'Unentschuldigt'];
   const rows = [header];
   for (const o of [...map.values()].sort((a, b) => a.name.localeCompare(b.name) || a.type.localeCompare(b.type))) {
@@ -108,7 +108,7 @@ function byTypeSheet(data, withHours) {
 // Detailliste: jede einzelne Teilnahme
 function detailSheet(data, withHours) {
   const header = withHours
-    ? ['Datum', 'Terminart', 'Helfer', 'Status', 'Stunden', 'Kommentar']
+    ? ['Datum', 'Terminart', 'Betreuer', 'Status', 'Stunden', 'Kommentar']
     : ['Datum', 'Terminart', 'Mitglied', 'Status', 'Kommentar'];
   const rows = [header];
   // nach Datum sortiert

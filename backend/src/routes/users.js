@@ -12,7 +12,7 @@ const publicUser = (u) => ({
 // Liste aller Jugendhelfer (für Helfer-Präsenz und Statistik sichtbar)
 // GET /api/users/helpers
 router.get('/helpers', requireAuth, (req, res) => {
-  const rows = db.prepare("SELECT * FROM users WHERE role = 'helper' ORDER BY display_name").all();
+  const rows = db.prepare("SELECT * FROM users WHERE role IN ('helper','admin') ORDER BY display_name").all();
   res.json(rows.map(publicUser));
 });
 

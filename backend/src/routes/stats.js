@@ -53,7 +53,7 @@ router.get('/helpers', requireAuth, (req, res) => {
     FROM users u
     LEFT JOIN attendance_helpers a ON a.helper_id = u.id
     LEFT JOIN events e ON e.id = a.event_id AND 1=1 ${where}
-    WHERE u.role = 'helper'
+    WHERE u.role IN ('helper','admin')
     GROUP BY u.id
     ORDER BY u.display_name
   `).all(params).map((r) => ({

@@ -180,7 +180,7 @@
 
     // Helfer dürfen nur die EIGENE Präsenz eintragen -> nur sich selbst anzeigen.
     const visibleHelpers = isAdmin ? helpers : helpers.filter((h) => h.id === state.user.id);
-    const helperLabel = isAdmin ? `Jugendhelfer (${visibleHelpers.length})` : 'Eigene Präsenz';
+    const helperLabel = isAdmin ? `Betreuer (${visibleHelpers.length})` : 'Eigene Präsenz';
     const part = state.params.part === 'helper' ? 'helper' : 'member';
 
     // Erfasser der Mitglieder-Präsenz (frühester Eintrag). Solange offen, dürfen
@@ -229,7 +229,7 @@
       <div class="list attendance-list ${part === 'helper' ? '' : 'hidden'}" id="helper-list">
         ${helperNote}
         ${visibleHelpers.map((h) => helperRow(h, hMap.get(h.id), eventDurationHours(ev), helperEditable)).join('')
-          || '<div class="empty">Keine Jugendhelfer.</div>'}
+          || '<div class="empty">Keine Betreuer.</div>'}
       </div>`;
 
     $('#back').onclick = () => navigate('events');
@@ -480,7 +480,7 @@
       </div>
       <div class="tabs">
         <button class="tab ${tab === 'members' ? 'active' : ''}" data-tab="members">Mitglieder</button>
-        <button class="tab ${tab === 'helpers' ? 'active' : ''}" data-tab="helpers">Jugendhelfer</button>
+        <button class="tab ${tab === 'helpers' ? 'active' : ''}" data-tab="helpers">Betreuer</button>
       </div>
       ${tab === 'members' ? statsTableMembers(mStats) : statsTableHelpers(hStats)}`;
 
@@ -527,7 +527,7 @@
   function statsTableHelpers(rows) {
     if (!rows.length) return '<div class="empty">Keine Daten im gewählten Zeitraum.</div>';
     return `<div class="table-wrap"><table class="stats-table">
-      <thead><tr><th>Helfer</th><th>Std.</th><th>Anw.</th><th>Entsch.</th><th>Unentsch.</th><th>Quote</th></tr></thead>
+      <thead><tr><th>Betreuer</th><th>Std.</th><th>Anw.</th><th>Entsch.</th><th>Unentsch.</th><th>Quote</th></tr></thead>
       <tbody>${rows.map((r) => `<tr>
         <td class="td-name">${esc(r.name)}</td>
         <td class="num"><b>${r.hours}</b></td>
@@ -700,9 +700,9 @@
     try { rows = await API.get('/sync/status'); }
     catch { body.innerHTML = '<div class="empty">Sync-Status nur online verfügbar.</div>'; return; }
     body.innerHTML = `
-      <div class="page-head"><h2>Sync-Status der Helfer</h2></div>
+      <div class="page-head"><h2>Sync-Status der Betreuer</h2></div>
       <div class="table-wrap"><table class="stats-table">
-        <thead><tr><th>Helfer</th><th>Einträge</th><th>Letzte Erfassung</th></tr></thead>
+        <thead><tr><th>Betreuer</th><th>Einträge</th><th>Letzte Erfassung</th></tr></thead>
         <tbody>${rows.map((r) => `<tr>
           <td class="td-name">${esc(r.display_name)}</td>
           <td class="num">${(r.member_entries || 0) + (r.helper_entries || 0)}</td>

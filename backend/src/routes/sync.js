@@ -126,7 +126,8 @@ router.post('/push', requireAuth, (req, res) => {
 // GET /api/sync/bootstrap  — vollständiger Datenstand zum lokalen Cachen (offline)
 router.get('/bootstrap', requireAuth, (req, res) => {
   const members = db.prepare('SELECT * FROM members WHERE active = 1 ORDER BY last_name, first_name').all();
-  const helpers = db.prepare("SELECT id, username, role, display_name, active FROM users WHERE role = 'helper' ORDER BY display_name").all();
+  // Betreuer = Jugendhelfer UND Jugendleiter (Admin) – beide erfassen eigene Präsenz + Stunden
+  const helpers = db.prepare("SELECT id, username, role, display_name, active FROM users WHERE role IN ('helper','admin') ORDER BY display_name").all();
   const events = db.prepare(`
     SELECT e.*, u.display_name AS created_by_name
     FROM events e LEFT JOIN users u ON u.id = e.created_by
@@ -147,7 +148,7 @@ router.get('/status', requireAuth, requireAdmin, (req, res) => {
       (SELECT MAX(entered_at) FROM attendance_helpers WHERE entered_by = u.id) AS last_helper_entry,
       (SELECT COUNT(*) FROM attendance_members WHERE entered_by = u.id) AS member_entries,
       (SELECT COUNT(*) FROM attendance_helpers WHERE entered_by = u.id) AS helper_entries
-    FROM users u WHERE u.role = 'helper' ORDER BY u.display_name`).all();
+    FROM users u WHERE u.role IN ('helper','admin') ORDER BY u.display_name`).all();
   res.json(rows);
 });
 
