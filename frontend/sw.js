@@ -1,7 +1,11 @@
-// Service Worker: cached die App-Shell für Offline-Betrieb.
-// Statische Assets: Cache-First. API-Aufrufe: Network-Only
-// (Offline-Daten werden von der App über IndexedDB verwaltet).
-const CACHE = 'jf-praesenz-v1';
+// Service Worker: App-Shell für Offline-Betrieb + zuverlässige Updates.
+//
+// Strategie: NETWORK-FIRST für eigene Seiten/Skripte/Styles. Ist eine Verbindung
+// da, wird immer die AKTUELLE Version vom Server geladen (so kommen Korrekturen
+// sofort beim nächsten Öffnen an). Ohne Verbindung wird der zuletzt gecachte
+// Stand geliefert, damit die App offline weiter funktioniert.
+// API-Aufrufe laufen nie über den Cache (Offline-Daten regelt die App via IndexedDB).
+const CACHE = 'jf-praesenz-v2';
 const SHELL = [
   '/',
   '/index.html',
@@ -28,36 +32,38 @@ self.addEventListener('activate', (event) => {
   );
 });
 
+// Network-First mit Cache-Fallback (für gleiche Herkunft)
+async function networkFirst(request) {
+  const cache = await caches.open(CACHE);
+  try {
+    const resp = await fetch(request);
+    if (resp && resp.status === 200 && new URL(request.url).origin === self.location.origin) {
+      cache.put(request, resp.clone());
+    }
+    return resp;
+  } catch (e) {
+    const cached = await cache.match(request);
+    if (cached) return cached;
+    if (request.mode === 'navigate') {
+      const fallback = await cache.match('/index.html');
+      if (fallback) return fallback;
+    }
+    throw e;
+  }
+}
+
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   if (request.method !== 'GET') return;
-
   const url = new URL(request.url);
 
   // API niemals cachen – die App verarbeitet Offline-Fälle selbst.
   if (url.pathname.startsWith('/api/')) return;
 
-  // Navigations-Anfragen: Netzwerk zuerst, Fallback auf App-Shell.
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request).catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
+  // Nur eigene Ressourcen behandeln; fremde (falls vorhanden) normal durchlassen.
+  if (url.origin !== self.location.origin) return;
 
-  // Statische Assets: Cache-First, danach Netzwerk (und Cache aktualisieren).
-  event.respondWith(
-    caches.match(request).then((cached) => {
-      const network = fetch(request).then((resp) => {
-        if (resp && resp.status === 200 && url.origin === self.location.origin) {
-          const copy = resp.clone();
-          caches.open(CACHE).then((cache) => cache.put(request, copy));
-        }
-        return resp;
-      }).catch(() => cached);
-      return cached || network;
-    })
-  );
+  event.respondWith(networkFirst(request));
 });
 
 // Background Sync: stößt beim Wiederverbinden einen Sync in der App an.
