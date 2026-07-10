@@ -1,0 +1,32 @@
+# Betrieb mit FERTIG GEBAUTEM Image aus dem Internet (GitHub Container Registry).
+# Kein Bauen auf dem NAS, kein ZIP-Upload. Update = neues Image laden + neu starten.
+#
+# Verwendung im Synology Container Manager (Projekt):
+#   1. Diese Datei als docker-compose.yml in einen Ordner legen (z. B. /docker/jugend-cisns)
+#   2. Im selben Ordner eine .env anlegen (siehe .env.example) mit JWT_SECRET, ADMIN_*
+#   3. Container Manager -> Projekt -> Erstellen -> diesen Ordner wählen
+#
+# Update später:
+#   Container Manager -> Projekt -> Aktion -> "Erstellen/Neu erstellen" (zieht neues Image)
+#   oder per SSH:  docker compose pull && docker compose up -d
+
+services:
+  app:
+    image: ghcr.io/clementeb2001/cisns-jugend:latest
+    container_name: jf-praesenz
+    restart: unless-stopped
+    pull_policy: always          # beim (Neu-)Erstellen immer die neueste Version holen
+    ports:
+      - "3000:3000"              # Reverse Proxy / Cloudflare Tunnel zeigt hierhin
+    env_file:
+      - .env                     # JWT_SECRET, ADMIN_USERNAME, ADMIN_PIN aus .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_PATH: /data/jugendfeuerwehr.db
+      FRONTEND_DIR: /frontend
+    volumes:
+      - jf-data:/data            # persistente SQLite-DB (bleibt über Updates erhalten)
+
+volumes:
+  jf-data:
