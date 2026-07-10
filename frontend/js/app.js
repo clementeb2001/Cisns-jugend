@@ -23,6 +23,16 @@
     const [y, m, d] = iso.split('-');
     return `${d}.${m}.${y}`;
   }
+  // Alter in vollen Jahren aus einem Geburtsdatum (ISO yyyy-mm-dd)
+  function ageYears(iso) {
+    if (!iso) return null;
+    const [y, m, d] = iso.split('-').map(Number);
+    if (!y || !m || !d) return null;
+    const today = new Date();
+    let age = today.getFullYear() - y;
+    if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--;
+    return age >= 0 && age < 130 ? age : null;
+  }
   function toast(msg, type = 'info') {
     const t = document.createElement('div');
     t.className = `toast toast-${type}`;
@@ -51,7 +61,14 @@
   const data = {
     async events() {
       const evs = await IDB.getAll('events');
-      return evs.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      const today = new Date().toISOString().slice(0, 10);
+      // Kommende Termine zuerst (nächster ganz oben, aufsteigend),
+      // vergangene danach (jüngster zuerst, absteigend).
+      const upcoming = evs.filter((e) => (e.date || '') >= today)
+        .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+      const past = evs.filter((e) => (e.date || '') < today)
+        .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      return [...upcoming, ...past];
     },
     async members() {
       return (await IDB.getAll('members'))
@@ -377,8 +394,8 @@
       <form id="event-form" class="form">
         <label>Datum<input type="date" name="date" value="${ev?.date || new Date().toISOString().slice(0, 10)}" required /></label>
         <div class="form-row">
-          <label>Beginn<input type="time" name="start_time" value="${ev?.start_time || '18:00'}" /></label>
-          <label>Ende<input type="time" name="end_time" value="${ev?.end_time || '19:30'}" /></label>
+          <label>Beginn<input type="time" name="start_time" value="${ev?.start_time || '10:00'}" /></label>
+          <label>Ende<input type="time" name="end_time" value="${ev?.end_time || '12:00'}" /></label>
         </div>
         <label>Art
           <select name="type" id="ev-type">${EVENT_TYPES.map((t) => `<option ${ev?.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
@@ -581,7 +598,7 @@
       <div class="card list-row ${m.active ? '' : 'inactive'}">
         <div>
           <b>${esc(m.last_name)}, ${esc(m.first_name)}</b>${m.active ? '' : ' <span class="badge">inaktiv</span>'}
-          ${m.birth_date ? `<div class="muted small">geb. ${fmtDate(m.birth_date)}</div>` : ''}
+          ${m.birth_date ? `<div class="muted small">geb. ${fmtDate(m.birth_date)}${ageYears(m.birth_date) !== null ? ` (${ageYears(m.birth_date)} Jahre)` : ''}</div>` : ''}
           ${contact}
         </div>
         ${isAdmin ? `<button class="btn btn-outline" data-edit="${m.id}">Bearbeiten</button>` : ''}
