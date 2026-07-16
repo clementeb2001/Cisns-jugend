@@ -4,14 +4,18 @@ import { requireAuth } from '../auth.js';
 
 const router = Router();
 
-// Baut die WHERE-Bedingung + Parameter für Zeitraum/Terminart auf events auf
+// Baut die WHERE-Bedingung + Parameter für Zeitraum/Terminart auf events auf.
+// Die Bedingung wird in einer Unterabfrage angewandt, die die Präsenz-Einträge
+// bereits auf die passenden Termine einschränkt (siehe unten). So filtern
+// Zeitraum/Terminart tatsächlich – Mitglieder/Betreuer ohne Treffer bleiben mit 0
+// erhalten (LEFT JOIN).
 function eventFilter(query) {
   const clauses = [];
   const params = {};
   if (query.from) { clauses.push('e.date >= @from'); params.from = query.from; }
   if (query.to) { clauses.push('e.date <= @to'); params.to = query.to; }
   if (query.type) { clauses.push('e.type = @type'); params.type = query.type; }
-  return { where: clauses.length ? 'AND ' + clauses.join(' AND ') : '', params };
+  return { cond: clauses.length ? 'WHERE ' + clauses.join(' AND ') : '', params };
 }
 
 function pct(present, total) {
@@ -20,7 +24,7 @@ function pct(present, total) {
 
 // GET /api/stats/members?from=&to=&type=
 router.get('/members', requireAuth, (req, res) => {
-  const { where, params } = eventFilter(req.query);
+  const { cond, params } = eventFilter(req.query);
   const rows = db.prepare(`
     SELECT m.id, m.first_name, m.last_name, m.active,
       SUM(CASE WHEN a.status = 'present'   THEN 1 ELSE 0 END) AS present,
@@ -28,8 +32,11 @@ router.get('/members', requireAuth, (req, res) => {
       SUM(CASE WHEN a.status = 'unexcused' THEN 1 ELSE 0 END) AS unexcused,
       COUNT(a.id) AS total
     FROM members m
-    LEFT JOIN attendance_members a ON a.member_id = m.id
-    LEFT JOIN events e ON e.id = a.event_id AND 1=1 ${where}
+    LEFT JOIN (
+      SELECT a.id, a.member_id, a.status
+      FROM attendance_members a JOIN events e ON e.id = a.event_id
+      ${cond}
+    ) a ON a.member_id = m.id
     GROUP BY m.id
     ORDER BY m.last_name, m.first_name
   `).all(params).map((r) => ({
@@ -42,7 +49,7 @@ router.get('/members', requireAuth, (req, res) => {
 
 // GET /api/stats/helpers?from=&to=&type=
 router.get('/helpers', requireAuth, (req, res) => {
-  const { where, params } = eventFilter(req.query);
+  const { cond, params } = eventFilter(req.query);
   const rows = db.prepare(`
     SELECT u.id, u.display_name,
       SUM(CASE WHEN a.status = 'present'   THEN 1 ELSE 0 END) AS present,
@@ -51,8 +58,11 @@ router.get('/helpers', requireAuth, (req, res) => {
       COUNT(a.id) AS total,
       COALESCE(SUM(CASE WHEN a.status = 'present' THEN a.hours ELSE 0 END), 0) AS hours
     FROM users u
-    LEFT JOIN attendance_helpers a ON a.helper_id = u.id
-    LEFT JOIN events e ON e.id = a.event_id AND 1=1 ${where}
+    LEFT JOIN (
+      SELECT a.id, a.helper_id, a.status, a.hours
+      FROM attendance_helpers a JOIN events e ON e.id = a.event_id
+      ${cond}
+    ) a ON a.helper_id = u.id
     WHERE u.role IN ('helper','admin')
     GROUP BY u.id
     ORDER BY u.display_name

@@ -155,6 +155,14 @@ test('Statistik zählt Status korrekt', async () => {
   assert.ok(h.some((x) => x.name === 'Admin'));
 });
 
+test('Statistik-Zeitraumfilter schließt Termine außerhalb des Zeitraums aus', async () => {
+  // Alle Testtermine liegen in 2026 -> ein Filter ab 2030 muss überall 0 ergeben
+  const m = await (await api('GET', '/api/stats/members?from=2030-01-01&to=2030-12-31', { token: adminToken })).json();
+  assert.ok(m.every((r) => r.total === 0), 'Mitglieder-Total außerhalb des Zeitraums muss 0 sein');
+  const h = await (await api('GET', '/api/stats/helpers?from=2030-01-01&to=2030-12-31', { token: adminToken })).json();
+  assert.ok(h.every((r) => r.total === 0 && r.hours === 0), 'Betreuer-Total/Stunden außerhalb des Zeitraums müssen 0 sein');
+});
+
 test('Admin kann eigene Präsenz + Stunden erfassen (als Betreuer)', async () => {
   // Admin trägt für sich selbst (helper_id = eigene id) Präsenz mit Stunden ein
   const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").get().id;
