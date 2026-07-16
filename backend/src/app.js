@@ -14,6 +14,12 @@ import exportRoutes from './routes/export.js';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 
+// Die App läuft hinter einem Reverse Proxy / Cloudflare Tunnel. Damit req.ip die
+// echte Besucher-Adresse liefert (statt der immer gleichen Proxy-Adresse), dem
+// Proxy vertrauen. Die App ist selbst nicht direkt aus dem Internet erreichbar,
+// daher ist das Vertrauen unbedenklich.
+app.set('trust proxy', true);
+
 // Sicherheits-Header (ohne externes Paket). Frontend wird same-origin ausgeliefert,
 // daher kein CORS nötig. CSP erlaubt nur eigene Ressourcen.
 app.use((req, res, next) => {

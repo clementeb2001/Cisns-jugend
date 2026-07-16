@@ -14,9 +14,14 @@ const attempts = new Map();
 // Dummy-Hash, um die Antwortzeit bei unbekanntem Benutzer anzugleichen (kein Timing-Leak)
 const DUMMY_HASH = bcrypt.hashSync('dummy-password-für-timing', 10);
 
+// Echte Client-IP ermitteln: hinter Cloudflare steht sie im Header
+// CF-Connecting-IP (vom Cloudflare-Edge gesetzt, nicht fälschbar). Fällt sonst
+// auf req.ip zurück (dank 'trust proxy' die vorderste X-Forwarded-For-Adresse).
+function clientIp(req) {
+  return req.headers['cf-connecting-ip'] || req.ip || req.socket?.remoteAddress || '';
+}
 function attemptKey(req, username) {
-  const ip = req.ip || req.socket?.remoteAddress || '';
-  return ip + '|' + String(username || '').toLowerCase();
+  return clientIp(req) + '|' + String(username || '').toLowerCase();
 }
 function checkLock(key) {
   const rec = attempts.get(key);

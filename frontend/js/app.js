@@ -816,7 +816,16 @@
     };
     $('#logout-btn').onclick = () => { if (confirm('Abmelden? Nicht synchronisierte Einträge gehen dabei verloren, wenn sie noch nicht hochgeladen wurden.')) logout(); };
 
-    window.addEventListener('auth-expired', () => { toast('Sitzung abgelaufen', 'error'); showLogin(); });
+    window.addEventListener('auth-expired', async () => {
+      // Ungültiges Token nicht erneut verwenden: Sitzung lokal verwerfen.
+      // (Nur die Sitzung, nicht die offline gespeicherten Einträge.)
+      state.user = null;
+      API.setToken(null);
+      await IDB.delMeta('token');
+      await IDB.delMeta('user');
+      toast('Sitzung abgelaufen', 'error');
+      showLogin();
+    });
 
     // Vom Server abgelehnte Änderungen (z.B. gesperrter Termin) melden + Ansicht auffrischen
     window.addEventListener('sync-rejected', (e) => {
