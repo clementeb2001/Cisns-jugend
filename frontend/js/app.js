@@ -48,6 +48,28 @@
   }
   const closedBadge = (ev) => ev.closed ? '<span class="badge badge-closed">🔒 Abgeschlossen</span>' : '';
 
+  // ---------- Jahrgang (Saison): 1. September – 31. August ----------
+  // Startjahr = bei Monat >= September das laufende Jahr, sonst das Vorjahr.
+  const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
+  function seasonStart(iso) {
+    if (!iso) return null;
+    const [y, m] = iso.split('-').map(Number);
+    return m >= 9 ? y : y - 1;
+  }
+  const seasonLabel = (s) => `${s} – ${s + 1}`;
+  const currentSeason = () => seasonStart(new Date().toISOString().slice(0, 10));
+  function weekday(iso) {
+    if (!iso) return '';
+    const d = new Date(iso + 'T00:00:00');
+    return Number.isNaN(d.getTime()) ? '' : WEEKDAYS[d.getDay()];
+  }
+  // Datum bzw. Datumsbereich (bei mehrtägigen "Sonstiges"-Terminen mit Enddatum)
+  function dateRange(ev) {
+    return ev.end_date && ev.end_date > ev.date
+      ? `${fmtDate(ev.date)} – ${fmtDate(ev.end_date)}`
+      : fmtDate(ev.date);
+  }
+
   // Dauer eines Termins in Stunden (für Helfer-Stunden-Default)
   function eventDurationHours(ev) {
     if (!ev.start_time || !ev.end_time) return 2;
@@ -151,24 +173,62 @@
   // ---------- Ansicht: Termine ----------
   async function renderEvents(main) {
     const events = await data.events();
+    const today = new Date().toISOString().slice(0, 10);
+
+    // Jahrgang-Auswahl: alle vorhandenen Jahrgänge + der aktuelle (auch ohne Termine),
+    // neuester oben. Standard: aktueller Jahrgang (springt ab 1. September von allein weiter).
+    const seasons = [...new Set([currentSeason(), ...events.map((e) => seasonStart(e.date))])]
+      .filter((s) => s !== null).sort((a, b) => b - a);
+    const selected = state.params.season != null ? Number(state.params.season) : currentSeason();
+
+    const inSeason = events.filter((e) => seasonStart(e.date) === selected);
+    const open = inSeason.filter((e) => !e.closed);
+    const closed = inSeason.filter((e) => e.closed).sort((a, b) => b.date.localeCompare(a.date));
+    const upcoming = open.filter((e) => e.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+    const pastOpen = open.filter((e) => e.date < today).sort((a, b) => b.date.localeCompare(a.date));
+    const next = upcoming[0] || null;
+    const rest = [...upcoming.slice(1), ...pastOpen];
+
+    const secLabel = (text, count) =>
+      `<div class="sec-label">${text}${count ? ` <span class="sec-count">${count}</span>` : ''}</div>`;
+
+    let listHtml = '';
+    if (next) listHtml += secLabel('Nächster Termin') + eventCard(next, true);
+    if (rest.length) listHtml += secLabel('Weitere Termine', rest.length) + rest.map((e) => eventCard(e)).join('');
+    if (!next && !rest.length) listHtml += '<div class="empty">Keine kommenden Termine in diesem Jahrgang.</div>';
+    if (closed.length) {
+      listHtml += secLabel('Abgeschlossene Termine', closed.length)
+        + `<div class="closed-block">${closed.map((e) => eventCard(e)).join('')}</div>`;
+    }
+    if (!inSeason.length) listHtml = '<div class="empty">In diesem Jahrgang gibt es noch keine Termine.</div>';
+
     main.innerHTML = `
       <div class="page-head">
         <h1>Termine</h1>
         <button class="btn btn-primary" id="new-event">+ Termin</button>
       </div>
-      <div class="list">
-        ${events.length ? events.map(eventCard).join('') : '<div class="empty">Noch keine Termine. Lege den ersten Termin an.</div>'}
-      </div>`;
+      <div class="card season-bar">
+        <label for="season-select">Jahrgang</label>
+        <span class="season-spacer"></span>
+        <select id="season-select" class="season-select">
+          ${seasons.map((s) => `<option value="${s}" ${s === selected ? 'selected' : ''}>${seasonLabel(s)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="list">${listHtml}</div>`;
+
     $('#new-event').onclick = () => eventForm();
+    $('#season-select').onchange = (e) => navigate('events', { season: Number(e.target.value) });
     main.querySelectorAll('[data-event]').forEach((c) =>
       c.onclick = () => navigate('event', { id: Number(c.dataset.event) }));
   }
 
-  function eventCard(ev) {
+  function eventCard(ev, isNext = false) {
     return `
-      <div class="card event-card" data-event="${ev.id}">
+      <div class="card event-card ${isNext ? 'next' : ''}" data-event="${ev.id}">
+        ${isNext ? '<span class="next-flag">Nächster Termin</span>' : ''}
         <div class="event-date">
-          <span class="event-day">${fmtDate(ev.date)}</span>
+          <span class="event-day">${dateRange(ev)}</span>
+          <span class="event-weekday">${weekday(ev.date)}</span>
           <span class="badge badge-type">${esc(typeLabel(ev))}</span>
           ${closedBadge(ev)}
         </div>
@@ -219,7 +279,7 @@
         ${canEditEvent ? '<button class="btn btn-outline" id="edit-event">Bearbeiten</button>' : ''}
       </div>
       <div class="card event-summary">
-        <div class="event-date"><span class="event-day">${fmtDate(ev.date)}</span><span class="badge badge-type">${esc(typeLabel(ev))}</span>${closedBadge(ev)}</div>
+        <div class="event-date"><span class="event-day">${dateRange(ev)}</span><span class="event-weekday">${weekday(ev.date)}</span><span class="badge badge-type">${esc(typeLabel(ev))}</span>${closedBadge(ev)}</div>
         <div class="event-meta">
           ${ev.start_time ? `🕒 ${esc(ev.start_time)}${ev.end_time ? '–' + esc(ev.end_time) : ''}` : ''}
           ${ev.location ? ` · 📍 ${esc(ev.location)}` : ''}
@@ -400,9 +460,15 @@
         <label>Art
           <select name="type" id="ev-type">${EVENT_TYPES.map((t) => `<option ${ev?.type === t ? 'selected' : ''}>${t}</option>`).join('')}</select>
         </label>
-        <label id="ev-detail-wrap" class="${ev?.type === 'Sonstiges' ? '' : 'hidden'}">Beschreibung (bei „Sonstiges")
-          <input type="text" name="type_detail" value="${esc(ev?.type_detail || '')}" placeholder="Was habt ihr gemacht?" />
-        </label>
+        <div id="ev-sonstiges" class="ev-sonstiges ${ev?.type === 'Sonstiges' ? '' : 'hidden'}">
+          <label>Beschreibung (bei „Sonstiges")
+            <input type="text" name="type_detail" value="${esc(ev?.type_detail || '')}" placeholder="Was habt ihr gemacht?" />
+          </label>
+          <label>Enddatum (optional, bei mehrtägigen Terminen)
+            <input type="date" name="end_date" value="${ev?.end_date || ''}" />
+          </label>
+          <p class="field-hint">Für mehrtägige Termine (z. B. JugendCamp). Die Präsenz zählt trotzdem nur einmal – das Enddatum dient nur der Übersicht.</p>
+        </div>
         <label>Ort<input type="text" name="location" value="${esc(ev?.location || '')}" /></label>
         <label>Notiz<textarea name="note" rows="2">${esc(ev?.note || '')}</textarea></label>
         <div class="form-actions">
@@ -411,16 +477,19 @@
         </div>
       </form>`;
     openModal(isEdit ? 'Termin bearbeiten' : 'Neuer Termin', body, (root, close) => {
-      // Beschreibungsfeld nur bei "Sonstiges" zeigen
+      // Zusatzfelder (Beschreibung + Enddatum) nur bei "Sonstiges" zeigen
       const typeSel = root.querySelector('#ev-type');
-      const detailWrap = root.querySelector('#ev-detail-wrap');
-      typeSel.onchange = () => detailWrap.classList.toggle('hidden', typeSel.value !== 'Sonstiges');
+      const sonstiges = root.querySelector('#ev-sonstiges');
+      typeSel.onchange = () => sonstiges.classList.toggle('hidden', typeSel.value !== 'Sonstiges');
       root.querySelector('#event-form').onsubmit = async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
         const payload = Object.fromEntries(fd.entries());
         if (payload.type === 'Sonstiges' && !String(payload.type_detail || '').trim()) {
           toast('Bitte bei „Sonstiges" kurz beschreiben, was gemacht wurde', 'error'); return;
+        }
+        if (payload.end_date && payload.date && payload.end_date < payload.date) {
+          toast('Das Enddatum darf nicht vor dem Startdatum liegen', 'error'); return;
         }
         try {
           if (!navigator.onLine) { toast('Termine benötigen eine Verbindung', 'error'); return; }

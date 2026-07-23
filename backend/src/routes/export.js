@@ -9,6 +9,7 @@ const STATUS_LABEL = { present: 'Anwesend', excused: 'Entschuldigt', unexcused: 
 const pct = (present, total) => (total > 0 ? Math.round((present / total) * 1000) / 10 : 0);
 const typeText = (type, detail) => (type === 'Sonstiges' && detail ? `Sonstiges: ${detail}` : type);
 const fmtDate = (iso) => { if (!iso) return ''; const [y, m, d] = iso.split('-'); return `${d}.${m}.${y}`; };
+const fmtRange = (from, to) => (to && to > from ? `${fmtDate(from)} – ${fmtDate(to)}` : fmtDate(from));
 
 // GET /api/export?from=&to=&type=  — Excel mit 6 Blättern (nur Admin):
 //   Mitglieder: Übersicht, nach Terminart, Detail
@@ -24,7 +25,7 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
 
   // ---- Rohdaten Mitglieder ----
   const mData = db.prepare(`
-    SELECT e.date, e.type, e.type_detail,
+    SELECT e.date, e.end_date, e.type, e.type_detail,
            m.last_name || ', ' || m.first_name AS name,
            a.status, a.comment
     FROM attendance_members a
@@ -36,7 +37,7 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
 
   // ---- Rohdaten Helfer ----
   const hData = db.prepare(`
-    SELECT e.date, e.type, e.type_detail,
+    SELECT e.date, e.end_date, e.type, e.type_detail,
            u.display_name AS name,
            a.status, a.hours, a.comment
     FROM attendance_helpers a
@@ -114,8 +115,8 @@ function detailSheet(data, withHours) {
   // nach Datum sortiert
   for (const r of [...data].sort((a, b) => (a.date || '').localeCompare(b.date || '') || a.name.localeCompare(b.name))) {
     rows.push(withHours
-      ? [fmtDate(r.date), typeText(r.type, r.type_detail), r.name, STATUS_LABEL[r.status] || r.status, Number(r.hours) || 0, r.comment || '']
-      : [fmtDate(r.date), typeText(r.type, r.type_detail), r.name, STATUS_LABEL[r.status] || r.status, r.comment || '']);
+      ? [fmtRange(r.date, r.end_date), typeText(r.type, r.type_detail), r.name, STATUS_LABEL[r.status] || r.status, Number(r.hours) || 0, r.comment || '']
+      : [fmtRange(r.date, r.end_date), typeText(r.type, r.type_detail), r.name, STATUS_LABEL[r.status] || r.status, r.comment || '']);
   }
   return rows.length > 1 ? rows : [header, []];
 }

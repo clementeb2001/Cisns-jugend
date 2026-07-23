@@ -9,12 +9,20 @@ const EDIT_WINDOW_HOURS = Number(process.env.EDIT_WINDOW_HOURS || 24);
 const EVENT_TYPES = ['Praktische Übung', 'Theorie', 'Freizeit', 'Sonstiges'];
 
 const mapEvent = (e) => ({
-  id: e.id, date: e.date, start_time: e.start_time, end_time: e.end_time,
+  id: e.id, date: e.date, end_date: e.end_date || null,
+  start_time: e.start_time, end_time: e.end_time,
   type: e.type, type_detail: e.type_detail || null,
   location: e.location, note: e.note, closed: !!e.closed,
   created_by: e.created_by, created_by_name: e.created_by_name || null,
   created_at: e.created_at,
 });
+
+// Enddatum nur bei "Sonstiges" und nur wenn nach dem Startdatum sinnvoll.
+function normalizeEndDate(type, date, endDate) {
+  if (type !== 'Sonstiges') return null;
+  const v = String(endDate || '').trim();
+  return v && v > date ? v : null;
+}
 
 // Prüft, ob der Nutzer die Termin-Stammdaten bearbeiten darf
 function canEdit(user, event) {
@@ -59,15 +67,16 @@ router.get('/:id', requireAuth, (req, res) => {
 
 // POST /api/events  (Helfer + Admin)
 router.post('/', requireAuth, (req, res) => {
-  const { date, start_time, end_time, type, type_detail, location, note } = req.body || {};
+  const { date, end_date, start_time, end_time, type, type_detail, location, note } = req.body || {};
   if (!date) return res.status(400).json({ error: 'Datum erforderlich' });
-  const typeErr = validateType(type || 'Praktische Übung', type_detail);
+  const evType = type || 'Praktische Übung';
+  const typeErr = validateType(evType, type_detail);
   if (typeErr) return res.status(400).json({ error: typeErr });
   const info = db.prepare(`
-    INSERT INTO events (date, start_time, end_time, type, type_detail, location, note, created_by)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `).run(date, start_time || null, end_time || null, type || 'Praktische Übung',
-    type === 'Sonstiges' ? (type_detail || null) : null, location || null, note || null, req.user.id);
+    INSERT INTO events (date, end_date, start_time, end_time, type, type_detail, location, note, created_by)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).run(date, normalizeEndDate(evType, date, end_date), start_time || null, end_time || null, evType,
+    evType === 'Sonstiges' ? (type_detail || null) : null, location || null, note || null, req.user.id);
   const e = db.prepare('SELECT * FROM events WHERE id = ?').get(info.lastInsertRowid);
   res.status(201).json(mapEvent(e));
 });
@@ -79,17 +88,20 @@ router.put('/:id', requireAuth, (req, res) => {
   if (!e) return res.status(404).json({ error: 'Termin nicht gefunden' });
   if (!canEdit(req.user, e)) return res.status(403).json({ error: 'Keine Berechtigung zum Bearbeiten dieses Termins' });
 
-  const { date, start_time, end_time, type, type_detail, location, note } = req.body || {};
+  const { date, end_date, start_time, end_time, type, type_detail, location, note } = req.body || {};
   const nextType = type ?? e.type;
   const nextDetail = type_detail === undefined ? e.type_detail : type_detail;
+  const nextDate = date ?? e.date;
+  const nextEndDate = end_date === undefined ? e.end_date : end_date;
   const typeErr = validateType(nextType, nextDetail);
   if (typeErr) return res.status(400).json({ error: typeErr });
 
   db.prepare(`UPDATE events SET
-      date = COALESCE(?, date), start_time = ?, end_time = ?,
+      date = COALESCE(?, date), end_date = ?, start_time = ?, end_time = ?,
       type = COALESCE(?, type), type_detail = ?, location = ?, note = ?, updated_at = datetime('now')
     WHERE id = ?`).run(
     date ?? null,
+    normalizeEndDate(nextType, nextDate, nextEndDate),
     start_time === undefined ? e.start_time : (start_time || null),
     end_time === undefined ? e.end_time : (end_time || null),
     type ?? null,

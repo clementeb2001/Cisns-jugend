@@ -91,6 +91,21 @@ test('Termin "Sonstiges" ohne Beschreibung wird abgelehnt', async () => {
   assert.equal((await ok.json()).type_detail, 'Grillfest');
 });
 
+test('Mehrtägiges "Sonstiges": Enddatum wird gespeichert, sonst ignoriert', async () => {
+  // Sonstiges mit gültigem Enddatum -> gespeichert
+  const camp = await api('POST', '/api/events', { token: helperToken,
+    body: { date: '2026-07-10', end_date: '2026-07-13', type: 'Sonstiges', type_detail: 'JugendCamp' } });
+  assert.equal((await camp.json()).end_date, '2026-07-13');
+  // Enddatum vor/gleich Startdatum -> ignoriert (null)
+  const bad = await api('POST', '/api/events', { token: helperToken,
+    body: { date: '2026-07-10', end_date: '2026-07-09', type: 'Sonstiges', type_detail: 'X' } });
+  assert.equal((await bad.json()).end_date, null);
+  // Andere Terminart -> Enddatum wird nicht übernommen
+  const other = await api('POST', '/api/events', { token: helperToken,
+    body: { date: '2026-07-10', end_date: '2026-07-13', type: 'Theorie' } });
+  assert.equal((await other.json()).end_date, null);
+});
+
 test('Sync-Push legt Präsenz an (Offline-Queue)', async () => {
   const id = uuid();
   // entered_at/updated_at aktuell -> Eintrag liegt im Bearbeitungsfenster

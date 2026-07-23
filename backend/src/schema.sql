@@ -32,7 +32,8 @@ CREATE TABLE IF NOT EXISTS members (
 -- Termine
 CREATE TABLE IF NOT EXISTS events (
   id          INTEGER PRIMARY KEY AUTOINCREMENT,
-  date        TEXT    NOT NULL,           -- ISO-Datum YYYY-MM-DD
+  date        TEXT    NOT NULL,           -- ISO-Datum YYYY-MM-DD (Startdatum)
+  end_date    TEXT,                       -- optionales Enddatum (mehrtägige "Sonstiges"-Termine)
   start_time  TEXT,                       -- HH:MM
   end_time    TEXT,                       -- HH:MM
   type        TEXT    NOT NULL DEFAULT 'Praktische Übung',  -- Praktische Übung, Theorie, Freizeit, Sonstiges

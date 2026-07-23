@@ -196,6 +196,45 @@ body {
 .event-meta { color: var(--muted); font-size: .88rem; margin-top: 7px; }
 .event-note { margin-top: 7px; font-size: .9rem; color: var(--muted-strong); }
 .event-summary { margin-bottom: 6px; }
+.event-weekday { color: var(--muted-strong); font-weight: 600; font-size: .82rem; }
+
+/* Jahrgang-Auswahl (Saison) */
+.season-bar { display: flex; align-items: center; gap: 10px; padding: 11px 14px; }
+.season-bar label { font-weight: 600; font-size: .9rem; color: var(--muted-strong); white-space: nowrap; }
+.season-spacer { flex: 1; }
+.season-select {
+  appearance: none; -webkit-appearance: none; background: #fff; color: var(--text);
+  border: 1.5px solid var(--border); border-radius: var(--radius-sm);
+  padding: 8px 32px 8px 12px; font: inherit; font-weight: 700; cursor: pointer;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'><path d='M2 4l4 4 4-4' stroke='%23991b1b' stroke-width='2' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
+
+/* Abschnitts-Überschriften in der Terminliste (auf dunklem Hintergrund) */
+.sec-label {
+  display: flex; align-items: center; gap: 8px;
+  text-transform: uppercase; letter-spacing: .08em; font-size: .74rem; font-weight: 700;
+  color: var(--on-dark-muted); margin: 18px 3px 9px;
+}
+.sec-label:first-child { margin-top: 4px; }
+.sec-count { background: rgba(148,163,184,.22); color: var(--on-dark); border-radius: var(--radius-pill); padding: 1px 8px; font-size: .68rem; }
+
+/* Nächster Termin – hervorgehoben */
+.event-card.next { border: 1.5px solid var(--red); box-shadow: 0 6px 20px rgba(185,28,28,.22); padding-top: 18px; }
+.next-flag {
+  position: absolute; top: -10px; left: 14px; background: var(--red); color: #fff;
+  text-transform: uppercase; letter-spacing: .07em; font-size: .62rem; font-weight: 800;
+  padding: 3px 9px; border-radius: var(--radius-pill); box-shadow: 0 2px 6px rgba(153,27,27,.4);
+}
+.event-card.next .event-day { font-size: 1.18rem; }
+
+/* Abgeschlossene Termine – abgedunkelt (wie inaktive Mitglieder) */
+.closed-block { opacity: .55; filter: grayscale(.35); transition: opacity .15s var(--ease); }
+.closed-block:hover { opacity: .85; }
+
+/* Zusatzfelder bei "Sonstiges" im Termin-Formular */
+.ev-sonstiges { display: flex; flex-direction: column; gap: 13px; }
+.field-hint { font-size: .8rem; color: var(--muted); margin-top: -4px; }
 
 /* Präsenz-Zeilen */
 .attendance-row { padding: 13px 14px; border-left: 5px solid var(--border); }
