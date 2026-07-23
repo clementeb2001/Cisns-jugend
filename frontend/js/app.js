@@ -865,9 +865,27 @@
   }
 
   async function boot() {
-    // Service Worker registrieren
+    // Service Worker registrieren + automatische Aktualisierung.
+    // Damit die installierte Homescreen-App neue Versionen von allein übernimmt:
+    // Beim Öffnen nach Updates suchen; sobald eine neue Version die Kontrolle
+    // übernimmt, die Seite EINMAL neu laden. Beim allerersten Installieren (noch
+    // kein aktiver Worker) wird NICHT neu geladen, um eine Schleife zu vermeiden.
     if ('serviceWorker' in navigator) {
-      try { await navigator.serviceWorker.register('/sw.js'); } catch (e) { console.warn('SW', e); }
+      const hadController = !!navigator.serviceWorker.controller;
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener('controllerchange', () => {
+        if (!hadController || reloaded) return;
+        reloaded = true;
+        window.location.reload();
+      });
+      try {
+        const reg = await navigator.serviceWorker.register('/sw.js');
+        reg.update().catch(() => {});
+        // Bei Rückkehr in die App (aus dem Hintergrund) erneut nach Updates suchen
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') reg.update().catch(() => {});
+        });
+      } catch (e) { console.warn('SW', e); }
     }
     Sync.init();
     Sync.onChange(updateSyncBadge);
