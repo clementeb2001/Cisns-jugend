@@ -48,7 +48,8 @@ frontend/           Vanilla-JS-PWA (kein Build-Schritt nötig)
 scripts/
   gen-icons.mjs     Erzeugt die PNG-Icons
   backup.sh         Tägliches SQLite-Backup (eigener Container)
-docker-compose.yml  Deployment (App + Backup)
+docker-compose.yml       Deployment mit fertigem GHCR-Image (für den NAS)
+docker-compose.build.yml Entwickler-Variante (Image lokal bauen)
 backend/Dockerfile
 ```
 
@@ -75,22 +76,23 @@ npm test   # node --test: Auth, Rollen, Sync/Last-Write-Wins, Statistik, Export
 Die Tests laufen gegen eine temporäre SQLite-DB und benötigen keine externen
 Dienste.
 
-## Deployment auf dem Synology DS225+
+## Deployment auf dem Synology DS225+ (fertiges Image aus dem Internet)
+
+Das Image wird von GitHub Actions gebaut und nach
+`ghcr.io/clementeb2001/cisns-jugend:latest` veröffentlicht – auf dem NAS wird
+**nichts gebaut**.
 
 1. `.env.example` nach `.env` kopieren und **`JWT_SECRET` setzen**
    (`openssl rand -hex 32`), Admin-Zugangsdaten anpassen.
-2. Image bauen und starten:
-   ```bash
-   docker compose build
-   docker compose run --rm app node src/seed.js   # einmalig: Admin anlegen
-   docker compose up -d
-   ```
-3. Den **bereits vorhandenen Reverse Proxy** (Web Station, Let's Encrypt) auf
-   `http://<nas>:3000` weiterleiten. Die App ist dann per HTTPS erreichbar –
-   Voraussetzung für Service Worker / PWA-Installation.
-4. Backups landen täglich im Ordner `./backups` (Aufbewahrung konfigurierbar
-   über `BACKUP_KEEP_DAYS`). Für Redundanz kann dieser Ordner zusätzlich in
-   eine private Cloud (z.B. Backblaze B2) gespiegelt werden.
+2. `docker-compose.yml` (die Image-Variante) + `.env` in einen Ordner legen und
+   im **Container Manager → Projekt → Erstellen** dieses Verzeichnis wählen.
+   Der Erst-Admin wird beim ersten Start automatisch angelegt.
+3. Den Reverse Proxy / **Cloudflare Tunnel** auf `http://<nas>:3000` leiten –
+   die App ist dann per HTTPS erreichbar (Voraussetzung für Service Worker / PWA).
+4. Off-Device-Backup des Volumes `jf-data` z.B. über Synology **Hyper Backup**.
+
+> `docker-compose.build.yml` ist die reine Entwickler-Variante, die das Image
+> lokal aus dem Quellcode baut (`docker compose -f docker-compose.build.yml up`).
 
 ## Umgebungsvariablen
 
