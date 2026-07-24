@@ -49,7 +49,7 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
 
   const buf = buildXlsx([
     { name: 'Mitglieder Übersicht', rows: overviewSheet(mData, false) },
-    { name: 'Mitglieder nach Art', rows: byTypeSheet(mData, false) },
+    { name: 'Mitglieder nach Art', rows: presentByTypePivot(mData) },
     { name: 'Mitglieder Detail', rows: detailSheet(mData, false) },
     { name: 'Betreuer Übersicht', rows: overviewSheet(hData, true) },
     { name: 'Betreuer nach Art', rows: byTypeSheet(hData, true) },
@@ -80,6 +80,27 @@ function overviewSheet(data, withHours) {
     rows.push(withHours
       ? [name, Math.round(o.hours * 100) / 100, o.present, o.excused, o.unexcused, total, pct(o.present, total)]
       : [name, o.present, o.excused, o.unexcused, total, pct(o.present, total)]);
+  }
+  return rows.length > 1 ? rows : [header, []];
+}
+
+// Kompakte Anwesenheits-Übersicht: jede Person EINE Zeile, Terminarten als Spalten,
+// gezählt werden nur "Anwesend"-Präsenzen. (Übersichtlicher als eine Zeile je Art.)
+const EVENT_TYPES = ['Praktische Übung', 'Theorie', 'Freizeit', 'Sonstiges'];
+function presentByTypePivot(data) {
+  const map = new Map(); // name -> { type: Anzahl anwesend }
+  for (const r of data) {
+    if (!map.has(r.name)) map.set(r.name, {});
+    if (r.status === 'present') {
+      const o = map.get(r.name);
+      o[r.type] = (o[r.type] || 0) + 1;
+    }
+  }
+  const header = ['Mitglied', ...EVENT_TYPES, 'Anwesend gesamt'];
+  const rows = [header];
+  for (const [name, o] of [...map].sort((a, b) => a[0].localeCompare(b[0]))) {
+    const counts = EVENT_TYPES.map((t) => o[t] || 0);
+    rows.push([name, ...counts, counts.reduce((s, c) => s + c, 0)]);
   }
   return rows.length > 1 ? rows : [header, []];
 }

@@ -621,9 +621,10 @@
 
   // ---------- Ansicht: Statistik ----------
   async function renderStats(main) {
-    const year = state.params.year || new Date().getFullYear();
-    const from = state.params.from ?? `${year}-01-01`;
-    const to = state.params.to ?? `${year}-12-31`;
+    // Voreinstellung: aktueller Jahrgang (1. Sept – 31. Aug), weiterhin änderbar
+    const s = currentSeason();
+    const from = state.params.from ?? `${s}-09-01`;
+    const to = state.params.to ?? `${s + 1}-08-31`;
     const type = state.params.type || '';
     const tab = state.params.tab || 'members';
 
