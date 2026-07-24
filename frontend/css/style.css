@@ -325,8 +325,17 @@ input:focus, select:focus, textarea:focus { outline: none; border-color: var(--r
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px rgba(185,28,28,.2); }
 .form { display: flex; flex-direction: column; gap: 13px; }
 .form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .9rem; color: var(--muted-strong); min-width: 0; }
-/* Datums-/Zeitfelder auf iOS nicht über den Rand wachsen lassen */
-input[type="date"], input[type="time"] { max-width: 100%; min-width: 0; }
+/* Datums-/Zeitfelder auf iOS: native Darstellung abschalten, damit sie sich an
+   die Breite halten (sonst blähen sie das Modal über den Bildschirmrand auf).
+   Der Datums-/Uhrzeit-Picker beim Antippen bleibt erhalten. */
+input[type="date"], input[type="time"] {
+  -webkit-appearance: none; appearance: none;
+  max-width: 100%; min-width: 0; box-sizing: border-box;
+}
+input[type="date"]::-webkit-date-and-time-value,
+input[type="time"]::-webkit-date-and-time-value { text-align: left; margin: 0; }
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator { margin-left: auto; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 /* Grid-Zellen dürfen unter ihre Inhaltsbreite schrumpfen (verhindert seitliches Scrollen) */
 .form-row > label { min-width: 0; }
