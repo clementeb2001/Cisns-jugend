@@ -213,9 +213,11 @@
     // Nur Admins dürfen Termine löschen -> nur sie bekommen die Wisch-Geste.
     const canDelete = state.user.role === 'admin';
 
+    // Kein Überschrift-Label für kommende Termine: Der rote Aufkleber markiert den
+    // nächsten Termin, die weiteren folgen direkt darunter.
     let listHtml = '';
-    if (next) listHtml += secLabel('Nächster Termin') + eventCard(next, true, canDelete);
-    if (rest.length) listHtml += secLabel('Weitere Termine', rest.length) + rest.map((e) => eventCard(e, false, canDelete)).join('');
+    if (next) listHtml += eventCard(next, true, canDelete);
+    if (rest.length) listHtml += rest.map((e) => eventCard(e, false, canDelete)).join('');
     if (!next && !rest.length) listHtml += '<div class="empty">Keine kommenden Termine in diesem Jahrgang.</div>';
     if (closed.length) {
       listHtml += secLabel('Abgeschlossene Termine', closed.length)
