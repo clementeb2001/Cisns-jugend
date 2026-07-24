@@ -324,7 +324,9 @@ input, select, textarea {
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px rgba(185,28,28,.14); }
 input:focus-visible, select:focus-visible, textarea:focus-visible { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px rgba(185,28,28,.2); }
 .form { display: flex; flex-direction: column; gap: 13px; }
-.form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .9rem; color: var(--muted-strong); }
+.form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .9rem; color: var(--muted-strong); min-width: 0; }
+/* Datums-/Zeitfelder auf iOS nicht über den Rand wachsen lassen */
+input[type="date"], input[type="time"] { max-width: 100%; min-width: 0; }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 /* Grid-Zellen dürfen unter ihre Inhaltsbreite schrumpfen (verhindert seitliches Scrollen) */
 .form-row > label { min-width: 0; }
