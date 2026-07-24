@@ -267,10 +267,11 @@ body {
 .member-sub { color: var(--on-dark-muted); font-size: .92rem; margin-top: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .detail-sec { padding: 0; overflow: hidden; }
 .detail-h { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: var(--muted); padding: 12px 15px 4px; }
-.drow { display: flex; justify-content: space-between; gap: 14px; padding: 10px 15px; border-top: 1px solid var(--border); }
+/* Gestapelt: Rubrik oben, eingegebener Wert darunter (linksbündig) */
+.drow { display: flex; flex-direction: column; gap: 3px; padding: 10px 15px; border-top: 1px solid var(--border); }
 .drow:first-of-type { border-top: none; }
-.dlabel { color: var(--muted-strong); font-weight: 600; font-size: .9rem; white-space: nowrap; }
-.dval { color: var(--text); font-size: .92rem; text-align: right; overflow-wrap: anywhere; }
+.dlabel { color: var(--muted); font-weight: 600; font-size: .76rem; letter-spacing: .02em; }
+.dval { color: var(--text); font-size: .96rem; text-align: left; overflow-wrap: anywhere; }
 .dval.empty { color: #b6c0cc; }
 .btn-block { display: block; width: 100%; padding: 14px; font-size: 1rem; margin-top: 4px; }
 

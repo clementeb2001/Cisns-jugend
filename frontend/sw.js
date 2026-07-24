@@ -5,7 +5,7 @@
 // sofort beim nächsten Öffnen an). Ohne Verbindung wird der zuletzt gecachte
 // Stand geliefert, damit die App offline weiter funktioniert.
 // API-Aufrufe laufen nie über den Cache (Offline-Daten regelt die App via IndexedDB).
-const CACHE = 'jf-praesenz-v6';
+const CACHE = 'jf-praesenz-v7';
 const SHELL = [
   '/',
   '/index.html',
