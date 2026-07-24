@@ -296,8 +296,9 @@ test('Excel-Export: nur Admin, valides XLSX (ZIP mit erwarteten Teilen)', async 
   // dekomprimierbare Central Directory vorhanden -> Namen prüfen
   const text = buf.toString('latin1');
   assert.ok(text.includes('[Content_Types].xml'));
-  // 6 Blätter: Mitglieder (Übersicht/nach Art/Detail) + Helfer (dito)
-  for (let i = 1; i <= 6; i++) assert.ok(text.includes(`xl/worksheets/sheet${i}.xml`), `sheet${i} fehlt`);
+  // 4 Blätter: Mitglieder (Übersicht/nach Art) + Betreuer (Übersicht/nach Art)
+  for (let i = 1; i <= 4; i++) assert.ok(text.includes(`xl/worksheets/sheet${i}.xml`), `sheet${i} fehlt`);
+  assert.ok(!text.includes('xl/worksheets/sheet5.xml'), 'kein 5. Blatt mehr');
   assert.ok(text.includes('Mitglieder'));
   assert.ok(text.includes('Betreuer'));
 });
