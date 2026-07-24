@@ -318,7 +318,7 @@ body {
 /* Formulare */
 input, select, textarea {
   font: inherit; padding: 11px 12px; border: 1.5px solid var(--border); border-radius: var(--radius-sm);
-  background: #fff; color: var(--text); width: 100%;
+  background: #fff; color: var(--text); width: 100%; min-width: 0; max-width: 100%;
   transition: border-color .15s var(--ease), box-shadow .15s var(--ease);
 }
 input:focus, select:focus, textarea:focus { outline: none; border-color: var(--red); box-shadow: 0 0 0 3px rgba(185,28,28,.14); }
@@ -326,6 +326,8 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .form { display: flex; flex-direction: column; gap: 13px; }
 .form label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .9rem; color: var(--muted-strong); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+/* Grid-Zellen dürfen unter ihre Inhaltsbreite schrumpfen (verhindert seitliches Scrollen) */
+.form-row > label { min-width: 0; }
 .form-actions { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; gap: 10px; }
 .check { flex-direction: row !important; align-items: center; gap: 8px !important; }
 .check input { width: auto; }
@@ -347,7 +349,7 @@ input:focus-visible, select:focus-visible, textarea:focus-visible { outline: non
 .modal-head h2 { font-size: 1.15rem; font-weight: 700; }
 .modal-head .modal-close { font-size: 1.05rem; color: var(--muted); border-radius: var(--radius-pill); }
 .modal-head .modal-close:hover { background: var(--card-2); color: var(--text); }
-.modal-body { padding: 18px; padding-bottom: calc(18px + var(--safe-bottom)); }
+.modal-body { padding: 18px; padding-bottom: calc(18px + var(--safe-bottom)); overflow-x: hidden; }
 
 /* Tabs */
 .tabs { display: flex; gap: 6px; background: #fff; padding: 5px; border-radius: 12px; margin-bottom: 14px; box-shadow: var(--shadow); }

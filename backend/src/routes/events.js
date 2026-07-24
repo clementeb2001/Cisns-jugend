@@ -121,6 +121,13 @@ function setClosed(req, res, value) {
   const id = Number(req.params.id);
   const e = db.prepare('SELECT * FROM events WHERE id = ?').get(id);
   if (!e) return res.status(404).json({ error: 'Termin nicht gefunden' });
+  // Abschließen erst ab dem Termintag erlauben (kein Abschließen künftiger Termine)
+  if (value === 1) {
+    const today = new Date().toISOString().slice(0, 10);
+    if (e.date > today) {
+      return res.status(400).json({ error: 'Der Termin kann erst ab dem Termintag abgeschlossen werden' });
+    }
+  }
   db.prepare("UPDATE events SET closed = ?, updated_at = datetime('now') WHERE id = ?").run(value, id);
   res.json(mapEvent(db.prepare('SELECT * FROM events WHERE id = ?').get(id)));
 }

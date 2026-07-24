@@ -374,7 +374,11 @@
           ${ev.location ? ` · 📍 ${esc(ev.location)}` : ''}
         </div>
         ${ev.note ? `<div class="event-note">${esc(ev.note)}</div>` : ''}
-        ${isAdmin ? `<button class="btn ${ev.closed ? 'btn-outline' : 'btn-danger'} btn-close" id="toggle-close">${ev.closed ? '🔓 Termin wieder öffnen' : '🔒 Termin abschließen'}</button>` : ''}
+        ${isAdmin ? (ev.closed
+          ? '<button class="btn btn-outline btn-close" id="toggle-close">🔓 Termin wieder öffnen</button>'
+          : (ev.date <= new Date().toISOString().slice(0, 10)
+            ? '<button class="btn btn-danger btn-close" id="toggle-close">🔒 Termin abschließen</button>'
+            : '<div class="field-hint">🔒 Abschließen ist erst ab dem Termintag möglich.</div>')) : ''}
       </div>
 
       <div class="card att-switch">
@@ -579,6 +583,13 @@
         }
         if (payload.end_date && payload.date && payload.end_date < payload.date) {
           toast('Das Enddatum darf nicht vor dem Startdatum liegen', 'error'); return;
+        }
+        // Doppelten Termin erkennen (gleiches Datum + gleiche Anfangszeit) und nachfragen
+        const dupe = (await data.events()).find((x) =>
+          x.id !== ev?.id && x.date === payload.date && (x.start_time || '') === (payload.start_time || ''));
+        if (dupe) {
+          const t = payload.start_time ? ` um ${payload.start_time} Uhr` : '';
+          if (!confirm(`Achtung: Am ${fmtDate(payload.date)}${t} ist bereits ein Termin eingetragen („${typeLabel(dupe)}").\n\nTrotzdem anlegen?`)) return;
         }
         try {
           if (!navigator.onLine) { toast('Termine benötigen eine Verbindung', 'error'); return; }

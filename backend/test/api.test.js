@@ -256,6 +256,16 @@ test('Termin abschließen sperrt Helfer (Präsenz + Stunden), Admin bleibt', asy
   assert.equal((await reopened.json()).attendance_helpers[0].server.hours, 4);
 });
 
+test('Zukünftiger Termin kann nicht abgeschlossen werden', async () => {
+  const future = await (await api('POST', '/api/events', { token: adminToken,
+    body: { date: '2999-12-31', type: 'Theorie' } })).json();
+  const res = await api('POST', `/api/events/${future.id}/close`, { token: adminToken });
+  assert.equal(res.status, 400);
+  // bleibt offen
+  const still = db.prepare('SELECT closed FROM events WHERE id = ?').get(future.id);
+  assert.equal(still.closed, 0);
+});
+
 test('Excel-Export: nur Admin, valides XLSX (ZIP mit erwarteten Teilen)', async () => {
   const forbidden = await api('GET', '/api/export', { token: helperToken });
   assert.equal(forbidden.status, 403);
