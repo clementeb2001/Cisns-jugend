@@ -236,6 +236,19 @@ body {
 .ev-sonstiges { display: flex; flex-direction: column; gap: 13px; }
 .field-hint { font-size: .8rem; color: var(--muted); margin-top: -4px; }
 
+/* Wisch-zum-Löschen (nur Admin) – rote Fläche hinter der Termin-Karte */
+.swipe-row { position: relative; margin-bottom: 11px; border-radius: var(--radius); overflow: hidden; }
+.swipe-row .event-card { margin-bottom: 0; touch-action: pan-y; }
+.swipe-row .event-card:not(.dragging) { transition: transform .22s var(--ease); }
+.swipe-row .event-card.dragging { transition: none; }
+.swipe-delete {
+  position: absolute; inset: 0 0 0 auto; width: 100%;
+  display: flex; align-items: center; justify-content: flex-end; gap: 7px;
+  padding-right: 24px; background: var(--rose); color: #fff; border: none;
+  font: inherit; font-weight: 700; font-size: .95rem; cursor: pointer;
+}
+.swipe-delete .tr { font-size: 1.15rem; }
+
 /* Präsenz-Zeilen */
 .attendance-row { padding: 13px 14px; border-left: 5px solid var(--border); }
 .attendance-row.unset { border-left-color: #cbd5e1; }

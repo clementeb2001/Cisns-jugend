@@ -192,13 +192,16 @@
     const secLabel = (text, count) =>
       `<div class="sec-label">${text}${count ? ` <span class="sec-count">${count}</span>` : ''}</div>`;
 
+    // Nur Admins dürfen Termine löschen -> nur sie bekommen die Wisch-Geste.
+    const canDelete = state.user.role === 'admin';
+
     let listHtml = '';
-    if (next) listHtml += secLabel('Nächster Termin') + eventCard(next, true);
-    if (rest.length) listHtml += secLabel('Weitere Termine', rest.length) + rest.map((e) => eventCard(e)).join('');
+    if (next) listHtml += secLabel('Nächster Termin') + eventCard(next, true, canDelete);
+    if (rest.length) listHtml += secLabel('Weitere Termine', rest.length) + rest.map((e) => eventCard(e, false, canDelete)).join('');
     if (!next && !rest.length) listHtml += '<div class="empty">Keine kommenden Termine in diesem Jahrgang.</div>';
     if (closed.length) {
       listHtml += secLabel('Abgeschlossene Termine', closed.length)
-        + `<div class="closed-block">${closed.map((e) => eventCard(e)).join('')}</div>`;
+        + `<div class="closed-block">${closed.map((e) => eventCard(e, false, canDelete)).join('')}</div>`;
     }
     if (!inSeason.length) listHtml = '<div class="empty">In diesem Jahrgang gibt es noch keine Termine.</div>';
 
@@ -218,12 +221,17 @@
 
     $('#new-event').onclick = () => eventForm();
     $('#season-select').onchange = (e) => navigate('events', { season: Number(e.target.value) });
-    main.querySelectorAll('[data-event]').forEach((c) =>
-      c.onclick = () => navigate('event', { id: Number(c.dataset.event) }));
+    // Admin: Wisch-zum-Löschen (Tippen öffnet den Termin) auf jeder Wisch-Karte.
+    main.querySelectorAll('.swipe-row').forEach((row) => setupSwipeDelete(row));
+    // Karten ohne Wisch-Geste (Helfer): normales Tippen öffnet den Termin.
+    main.querySelectorAll('.event-card').forEach((c) => {
+      if (c.closest('.swipe-row')) return;
+      c.onclick = () => navigate('event', { id: Number(c.dataset.event) });
+    });
   }
 
-  function eventCard(ev, isNext = false) {
-    return `
+  function eventCard(ev, isNext = false, canDelete = false) {
+    const card = `
       <div class="card event-card ${isNext ? 'next' : ''}" data-event="${ev.id}">
         ${isNext ? '<span class="next-flag">Nächster Termin</span>' : ''}
         <div class="event-date">
@@ -238,6 +246,67 @@
         </div>
         ${ev.note ? `<div class="event-note">${esc(ev.note)}</div>` : ''}
       </div>`;
+    if (!canDelete) return card;
+    return `<div class="swipe-row">
+      <button class="swipe-delete" data-del="${ev.id}" aria-label="Termin löschen"><span class="tr">🗑</span> Löschen</button>
+      ${card}
+    </div>`;
+  }
+
+  // Termin löschen (nur Admin) – mit Sicherheitsabfrage, danach Ansicht auffrischen.
+  async function deleteEventById(id) {
+    if (!confirm('Diesen Termin wirklich löschen? Alle Präsenz-Einträge gehen verloren.')) return false;
+    if (!navigator.onLine) { toast('Löschen benötigt eine Verbindung', 'error'); return false; }
+    try {
+      await API.del('/events/' + id);
+      await Sync.bootstrap();
+      toast('Termin gelöscht', 'success');
+      render();
+      return true;
+    } catch (err) { toast(err.message, 'error'); return false; }
+  }
+
+  // Wisch-zum-Löschen (wie beim iPhone): Karte nach links ziehen -> Löschen-Fläche.
+  function setupSwipeDelete(row) {
+    const card = row.querySelector('.event-card');
+    const del = row.querySelector('.swipe-delete');
+    const id = Number(card.dataset.event);
+    const BTN = 96;
+    const close = () => { card.style.transform = 'translateX(0)'; card.dataset.open = '0'; };
+    const open = () => { card.style.transform = `translateX(-${BTN}px)`; card.dataset.open = '1'; };
+    if (del) del.onclick = (e) => { e.stopPropagation(); deleteEventById(id).then((ok) => { if (!ok) close(); }); };
+
+    let startX = 0, startY = 0, dx = 0, dragging = false, decided = false, horizontal = false, base = 0;
+    card.addEventListener('pointerdown', (e) => {
+      dragging = true; decided = false; horizontal = false;
+      startX = e.clientX; startY = e.clientY;
+      base = card.dataset.open === '1' ? -BTN : 0;
+      card.classList.add('dragging');
+      try { card.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    });
+    card.addEventListener('pointermove', (e) => {
+      if (!dragging) return;
+      const mx = e.clientX - startX, my = e.clientY - startY;
+      if (!decided && (Math.abs(mx) > 6 || Math.abs(my) > 6)) { decided = true; horizontal = Math.abs(mx) > Math.abs(my); }
+      if (!horizontal) return;
+      e.preventDefault();
+      dx = Math.min(0, Math.max(-row.offsetWidth, base + mx)); // nur nach links
+      card.style.transform = `translateX(${dx}px)`;
+    });
+    const settle = () => {
+      if (!dragging) return;
+      dragging = false; card.classList.remove('dragging');
+      if (!decided) { // reiner Tipp
+        if (card.dataset.open === '1') close(); else navigate('event', { id });
+        return;
+      }
+      if (!horizontal) return; // vertikales Scrollen -> ignorieren
+      if (dx < -row.offsetWidth * 0.5) deleteEventById(id).then((ok) => { if (!ok) close(); }); // ganz durchgewischt
+      else if (dx < -BTN * 0.5) open();
+      else close();
+    };
+    card.addEventListener('pointerup', settle);
+    card.addEventListener('pointercancel', settle);
   }
 
   // ---------- Ansicht: Präsenz-Erfassung ----------
@@ -469,7 +538,7 @@
           </label>
           <p class="field-hint">Für mehrtägige Termine (z. B. JugendCamp). Die Präsenz zählt trotzdem nur einmal – das Enddatum dient nur der Übersicht.</p>
         </div>
-        <label>Ort<input type="text" name="location" value="${esc(ev?.location || '')}" /></label>
+        <label>Ort<input type="text" name="location" value="${esc(isEdit ? (ev.location || '') : 'Schuttrange')}" /></label>
         <label>Notiz<textarea name="note" rows="2">${esc(ev?.note || '')}</textarea></label>
         <div class="form-actions">
           ${isEdit && state.user.role === 'admin' ? '<button type="button" class="btn btn-danger" id="del-event">Löschen</button>' : '<span></span>'}
