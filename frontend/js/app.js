@@ -33,6 +33,10 @@
     if (today.getMonth() + 1 < m || (today.getMonth() + 1 === m && today.getDate() < d)) age--;
     return age >= 0 && age < 130 ? age : null;
   }
+  // Wissenstest-Medaille als farbiges Abzeichen
+  const MEDAL_LABEL = { bronze: '🥉 Bronze', silber: '🥈 Silber', gold: '🥇 Gold' };
+  const medalBadge = (medal) => (medal && MEDAL_LABEL[medal]
+    ? `<span class="medal medal-${medal}">${MEDAL_LABEL[medal]}</span>` : '');
   function toast(msg, type = 'info') {
     const t = document.createElement('div');
     t.className = `toast toast-${type}`;
@@ -163,6 +167,7 @@
       if (state.view === 'events') return await renderEvents(main);
       if (state.view === 'event') return await renderEventDetail(main, state.params.id);
       if (state.view === 'roster') return await renderRoster(main);
+      if (state.view === 'member') return await renderMemberDetail(main, state.params.id);
       if (state.view === 'stats') return await renderStats(main);
       if (state.view === 'admin') return await renderAdmin(main);
     } catch (e) {
@@ -718,42 +723,102 @@
     catch { members = await data.members(); }
     main.innerHTML = `
       <div class="page-head"><h1>Mitglieder</h1>${isAdmin ? '<button class="btn btn-primary" id="add-m">+ Mitglied</button>' : ''}</div>
-      ${isAdmin ? '' : '<p class="hint-line">Nur Ansicht – Änderungen nimmt die Jugendfeuerwehr-Leitung vor.</p>'}
-      <div class="list">${members.map((m) => memberCard(m, isAdmin)).join('') || '<div class="empty">Noch keine Mitglieder.</div>'}</div>`;
-    if (isAdmin) {
-      $('#add-m').onclick = () => memberForm();
-      main.querySelectorAll('[data-edit]').forEach((b) =>
-        b.onclick = () => memberForm(members.find((m) => m.id === Number(b.dataset.edit))));
-    }
+      ${isAdmin ? '' : '<p class="hint-line">Tippe ein Mitglied an, um die Daten zu sehen (nur Ansicht).</p>'}
+      <div class="list">${members.map((m) => memberCard(m)).join('') || '<div class="empty">Noch keine Mitglieder.</div>'}</div>`;
+    if (isAdmin) $('#add-m').onclick = () => memberForm();
+    main.querySelectorAll('[data-member]').forEach((c) =>
+      c.onclick = () => navigate('member', { id: Number(c.dataset.member) }));
   }
 
-  function memberCard(m, isAdmin) {
-    const contact = (m.emergency_contact || m.emergency_phone)
-      ? `<div class="muted small">📞 ${esc(m.emergency_contact || 'Notfall')}${m.emergency_phone
-          ? `: <a class="contact-tel" href="tel:${esc(String(m.emergency_phone).replace(/\s/g, ''))}">${esc(m.emergency_phone)}</a>` : ''}</div>`
-      : '';
+  // Kompakte Listenkarte: Name + Medaille + Alter (nur Jahre). Öffnet die Detailseite.
+  function memberCard(m) {
+    const age = ageYears(m.birth_date);
     return `
-      <div class="card list-row ${m.active ? '' : 'inactive'}">
+      <div class="card list-row member-row ${m.active ? '' : 'inactive'}" data-member="${m.id}">
         <div>
-          <b>${esc(m.last_name)}, ${esc(m.first_name)}</b>${m.active ? '' : ' <span class="badge">inaktiv</span>'}
-          ${m.birth_date ? `<div class="muted small">geb. ${fmtDate(m.birth_date)}${ageYears(m.birth_date) !== null ? ` (${ageYears(m.birth_date)} Jahre)` : ''}</div>` : ''}
-          ${contact}
+          <div class="m-name"><b>${esc(m.last_name)}, ${esc(m.first_name)}</b>${medalBadge(m.medal)}${m.active ? '' : ' <span class="badge">inaktiv</span>'}</div>
+          ${age !== null ? `<div class="muted small">${age} Jahre</div>` : ''}
         </div>
-        ${isAdmin ? `<button class="btn btn-outline" data-edit="${m.id}">Bearbeiten</button>` : ''}
+        <span class="chev">›</span>
       </div>`;
+  }
+
+  // ---------- Ansicht: Mitglied-Detailseite ----------
+  async function renderMemberDetail(main, memberId) {
+    const isAdmin = state.user.role === 'admin';
+    let m;
+    try { m = await API.get('/members/' + memberId); }
+    catch { m = await IDB.get('members', memberId); }
+    if (!m) { main.innerHTML = '<div class="card">Mitglied nicht gefunden.</div>'; return; }
+
+    const age = ageYears(m.birth_date);
+    const tel = (v) => `<a class="contact-tel" href="tel:${esc(String(v).replace(/\s/g, ''))}">${esc(v)}</a>`;
+    const row = (label, val, isTel) => `
+      <div class="drow"><span class="dlabel">${label}</span>${
+        val ? `<span class="dval">${isTel ? tel(val) : esc(val)}</span>` : '<span class="dval empty">–</span>'}</div>`;
+
+    main.innerHTML = `
+      <div class="page-head"><button class="btn btn-ghost" id="back">‹ Zurück</button>${m.active ? '' : '<span class="badge">inaktiv</span>'}</div>
+      <div class="member-head">
+        <div class="member-title">${esc(m.last_name)}, ${esc(m.first_name)}</div>
+        <div class="member-sub">${m.birth_date ? `geb. ${fmtDate(m.birth_date)}${age !== null ? ` · ${age} Jahre` : ''}` : ''} ${medalBadge(m.medal)}</div>
+      </div>
+
+      <div class="card detail-sec"><div class="detail-h">Wissenstest</div>
+        ${row('Medaille', m.medal ? MEDAL_LABEL[m.medal] : '')}
+      </div>
+      <div class="card detail-sec"><div class="detail-h">Kontakt Eltern</div>
+        ${row('Mutter', m.mother_name)}
+        ${row('Tel. Mutter', m.mother_phone, true)}
+        ${row('Vater', m.father_name)}
+        ${row('Tel. Vater', m.father_phone, true)}
+      </div>
+      <div class="card detail-sec"><div class="detail-h">Verwaltung</div>
+        ${row('Matricule CGDIS', m.matricule_cgdis)}
+        ${row('Matricule CNS', m.matricule_cns)}
+        ${row('Adresse', m.address)}
+      </div>
+      <div class="card detail-sec"><div class="detail-h">Gesundheit</div>
+        ${row('Allergien', m.allergies)}
+        ${row('Vorerkrankungen / Medikamente', m.medical_notes)}
+      </div>
+      ${isAdmin ? '<button class="btn btn-primary btn-block" id="edit-member">✎ Bearbeiten</button>' : ''}`;
+
+    $('#back').onclick = () => navigate('roster');
+    const eb = $('#edit-member');
+    if (eb) eb.onclick = () => memberForm(m);
   }
 
   function memberForm(m = null) {
     const isEdit = !!m;
+    const medalOpt = (v, label) => `<option value="${v}" ${(m?.medal || '') === v ? 'selected' : ''}>${label}</option>`;
     const body = `
       <form id="m-form" class="form">
+        <div class="form-sec-label">Grunddaten</div>
         <div class="form-row">
           <label>Vorname<input name="first_name" value="${esc(m?.first_name || '')}" required /></label>
           <label>Nachname<input name="last_name" value="${esc(m?.last_name || '')}" required /></label>
         </div>
         <label>Geburtsdatum<input type="date" name="birth_date" value="${m?.birth_date || ''}" /></label>
-        <label>Notfallkontakt<input name="emergency_contact" value="${esc(m?.emergency_contact || '')}" placeholder="z.B. Mutter (Name)" /></label>
-        <label>Telefon Eltern / Notfall<input type="tel" name="emergency_phone" value="${esc(m?.emergency_phone || '')}" placeholder="z.B. 0170 1234567" /></label>
+        <label>Wissenstest-Medaille
+          <select name="medal">${medalOpt('', 'keine')}${medalOpt('bronze', '🥉 Bronze')}${medalOpt('silber', '🥈 Silber')}${medalOpt('gold', '🥇 Gold')}</select>
+        </label>
+
+        <div class="form-sec-label">Kontakt Eltern</div>
+        <label>Mutter (Name)<input name="mother_name" value="${esc(m?.mother_name || '')}" placeholder="z.B. Sabine Muster" /></label>
+        <label>Telefon Mutter<input type="tel" name="mother_phone" value="${esc(m?.mother_phone || '')}" placeholder="z.B. 0170 1234567" /></label>
+        <label>Vater (Name)<input name="father_name" value="${esc(m?.father_name || '')}" placeholder="z.B. Thomas Muster" /></label>
+        <label>Telefon Vater<input type="tel" name="father_phone" value="${esc(m?.father_phone || '')}" placeholder="z.B. 0171 9876543" /></label>
+
+        <div class="form-sec-label">Verwaltung</div>
+        <label>Matricule CGDIS<input name="matricule_cgdis" value="${esc(m?.matricule_cgdis || '')}" /></label>
+        <label>Matricule CNS<input name="matricule_cns" value="${esc(m?.matricule_cns || '')}" /></label>
+        <label>Adresse<input name="address" value="${esc(m?.address || '')}" placeholder="Straße, Nr., PLZ, Ort" /></label>
+
+        <div class="form-sec-label">Gesundheit</div>
+        <label>Allergien<textarea name="allergies" rows="2">${esc(m?.allergies || '')}</textarea></label>
+        <label>Vorerkrankungen und Medikamente<textarea name="medical_notes" rows="2">${esc(m?.medical_notes || '')}</textarea></label>
+
         ${isEdit ? `<label class="check"><input type="checkbox" name="active" ${m.active ? 'checked' : ''} /> aktiv</label>` : ''}
         <div class="form-actions">
           ${isEdit ? '<button type="button" class="btn btn-danger" id="del-m">Löschen/Inaktiv</button>' : '<span></span>'}
@@ -766,9 +831,11 @@
         const fd = new FormData(e.target);
         const payload = {
           first_name: fd.get('first_name'), last_name: fd.get('last_name'),
-          birth_date: fd.get('birth_date') || null,
-          emergency_contact: fd.get('emergency_contact') || null,
-          emergency_phone: fd.get('emergency_phone') || null,
+          birth_date: fd.get('birth_date') || null, medal: fd.get('medal') || null,
+          mother_name: fd.get('mother_name'), mother_phone: fd.get('mother_phone'),
+          father_name: fd.get('father_name'), father_phone: fd.get('father_phone'),
+          matricule_cgdis: fd.get('matricule_cgdis'), matricule_cns: fd.get('matricule_cns'),
+          address: fd.get('address'), allergies: fd.get('allergies'), medical_notes: fd.get('medical_notes'),
         };
         if (isEdit) payload.active = fd.get('active') ? 1 : 0;
         try {
@@ -781,8 +848,12 @@
       const del = root.querySelector('#del-m');
       if (del) del.onclick = async () => {
         if (!confirm('Mitglied löschen? Bei vorhandenen Einträgen wird es nur inaktiv gesetzt.')) return;
-        try { await API.del('/members/' + m.id); await Sync.bootstrap(); close(); render(); toast('Erledigt', 'success'); }
-        catch (err) { toast(err.message, 'error'); }
+        try {
+          await API.del('/members/' + m.id); await Sync.bootstrap(); close();
+          // Nach dem Löschen zurück zur Liste (Detailseite existiert ggf. nicht mehr)
+          if (state.view === 'member') navigate('roster'); else render();
+          toast('Erledigt', 'success');
+        } catch (err) { toast(err.message, 'error'); }
       };
     });
   }

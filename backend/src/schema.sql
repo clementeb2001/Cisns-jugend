@@ -22,8 +22,18 @@ CREATE TABLE IF NOT EXISTS members (
   first_name        TEXT    NOT NULL,
   last_name         TEXT    NOT NULL,
   birth_date        TEXT,            -- ISO-Datum, optional (Altersgruppen-Auswertung)
-  emergency_contact TEXT,            -- Notfallkontakt (z.B. "Mutter", Name)
-  emergency_phone   TEXT,            -- Telefonnummer der Eltern / des Notfallkontakts
+  medal             TEXT,            -- Wissenstest-Medaille: bronze | silber | gold
+  emergency_contact TEXT,            -- (Alt/Legacy) früherer einzelner Notfallkontakt
+  emergency_phone   TEXT,            -- (Alt/Legacy)
+  mother_name       TEXT,            -- Kontakt Mutter (Name)
+  mother_phone      TEXT,            -- Telefon Mutter
+  father_name       TEXT,            -- Kontakt Vater (Name)
+  father_phone      TEXT,            -- Telefon Vater
+  matricule_cgdis   TEXT,            -- Matricule CGDIS
+  matricule_cns     TEXT,            -- Matricule CNS
+  address           TEXT,            -- Adresse
+  allergies         TEXT,            -- Allergien
+  medical_notes     TEXT,            -- Vorerkrankungen und Medikamente
   active            INTEGER NOT NULL DEFAULT 1,  -- inaktiv statt löschen (Statistik-Historie)
   created_at        TEXT    NOT NULL DEFAULT (datetime('now')),
   updated_at        TEXT    NOT NULL DEFAULT (datetime('now'))

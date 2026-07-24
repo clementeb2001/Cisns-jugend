@@ -249,6 +249,36 @@ body {
 }
 .swipe-delete .tr { font-size: 1.15rem; }
 
+/* Mitglieder-Liste: antippbare Karte mit Medaille */
+.member-row { cursor: pointer; }
+.member-row .m-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.member-row .chev { color: #cbd5e1; font-size: 1.5rem; font-weight: 700; line-height: 1; flex: none; }
+
+/* Wissenstest-Medaille */
+.medal { display: inline-flex; align-items: center; gap: 4px; font-size: .72rem; font-weight: 700;
+  padding: 2px 9px; border-radius: var(--radius-pill); white-space: nowrap; }
+.medal-gold   { background: #fdf6e3; color: #b8860b; }
+.medal-silber { background: #f1f5f9; color: #64748b; }
+.medal-bronze { background: #fbf1ea; color: #a86a3d; }
+
+/* Mitglied-Detailseite */
+.member-head { margin: 2px 2px 14px; }
+.member-title { font-size: 1.5rem; font-weight: 800; color: var(--on-dark); letter-spacing: -.01em; }
+.member-sub { color: var(--on-dark-muted); font-size: .92rem; margin-top: 4px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.detail-sec { padding: 0; overflow: hidden; }
+.detail-h { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700; color: var(--muted); padding: 12px 15px 4px; }
+.drow { display: flex; justify-content: space-between; gap: 14px; padding: 10px 15px; border-top: 1px solid var(--border); }
+.drow:first-of-type { border-top: none; }
+.dlabel { color: var(--muted-strong); font-weight: 600; font-size: .9rem; white-space: nowrap; }
+.dval { color: var(--text); font-size: .92rem; text-align: right; overflow-wrap: anywhere; }
+.dval.empty { color: #b6c0cc; }
+.btn-block { display: block; width: 100%; padding: 14px; font-size: 1rem; margin-top: 4px; }
+
+/* Abschnitts-Überschrift im Formular */
+.form-sec-label { font-size: .72rem; text-transform: uppercase; letter-spacing: .08em; font-weight: 700;
+  color: var(--muted); margin: 6px 0 2px; }
+.form-sec-label:first-child { margin-top: 0; }
+
 /* Präsenz-Zeilen */
 .attendance-row { padding: 13px 14px; border-left: 5px solid var(--border); }
 .attendance-row.unset { border-left-color: #cbd5e1; }

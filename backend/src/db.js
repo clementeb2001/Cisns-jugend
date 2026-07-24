@@ -27,6 +27,16 @@ function ensureColumn(table, column, definition) {
 }
 ensureColumn('members', 'emergency_contact', 'TEXT');
 ensureColumn('members', 'emergency_phone', 'TEXT');
+ensureColumn('members', 'medal', 'TEXT');
+ensureColumn('members', 'mother_name', 'TEXT');
+ensureColumn('members', 'mother_phone', 'TEXT');
+ensureColumn('members', 'father_name', 'TEXT');
+ensureColumn('members', 'father_phone', 'TEXT');
+ensureColumn('members', 'matricule_cgdis', 'TEXT');
+ensureColumn('members', 'matricule_cns', 'TEXT');
+ensureColumn('members', 'address', 'TEXT');
+ensureColumn('members', 'allergies', 'TEXT');
+ensureColumn('members', 'medical_notes', 'TEXT');
 ensureColumn('events', 'type_detail', 'TEXT');
 ensureColumn('events', 'closed', 'INTEGER NOT NULL DEFAULT 0');
 ensureColumn('events', 'end_date', 'TEXT');

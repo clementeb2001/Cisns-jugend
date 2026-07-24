@@ -293,20 +293,36 @@ test('Helfer darf keine fremde Helfer-Präsenz eintragen (nur eigene)', async ()
   assert.equal((await adminRes.json()).attendance_helpers[0].server.hours, 1.5);
 });
 
-test('Mitglied: Notfallkontakt wird gespeichert und ausgeliefert', async () => {
+test('Mitglied: Eltern-Kontakte, Medaille und Zusatzfelder werden gespeichert', async () => {
   const create = await api('POST', '/api/members', {
     token: adminToken,
-    body: { first_name: 'Nina', last_name: 'Zart', emergency_contact: 'Mutter (Sabine)', emergency_phone: '0170 1234567' },
+    body: {
+      first_name: 'Nina', last_name: 'Zart', birth_date: '2012-05-06', medal: 'Gold',
+      mother_name: 'Sabine Zart', mother_phone: '0170 1234567',
+      father_name: 'Tom Zart', father_phone: '0171 7654321',
+      matricule_cgdis: 'CG-123', matricule_cns: 'CN-456',
+      address: '1, rue Test, L-5370 Schuttrange', allergies: 'Nüsse', medical_notes: 'Asthma',
+    },
   });
   assert.equal(create.status, 201);
   const created = await create.json();
-  assert.equal(created.emergency_contact, 'Mutter (Sabine)');
-  assert.equal(created.emergency_phone, '0170 1234567');
+  assert.equal(created.medal, 'gold');            // normalisiert (klein)
+  assert.equal(created.mother_phone, '0170 1234567');
+  assert.equal(created.father_name, 'Tom Zart');
+  assert.equal(created.matricule_cgdis, 'CG-123');
+  assert.equal(created.allergies, 'Nüsse');
 
-  // Auch ein Helfer darf die Mitglieder (inkl. Notfallkontakt) einsehen
-  const list = await (await api('GET', '/api/members', { token: helperToken })).json();
-  const found = list.find((m) => m.id === created.id);
-  assert.equal(found.emergency_phone, '0170 1234567');
+  // Ungültige Medaille -> null
+  const bad = await (await api('POST', '/api/members', { token: adminToken,
+    body: { first_name: 'X', last_name: 'Y', medal: 'platin' } })).json();
+  assert.equal(bad.medal, null);
+
+  // Helfer darf die Einzelansicht lesen (inkl. Gesundheitsdaten)
+  const one = await api('GET', '/api/members/' + created.id, { token: helperToken });
+  assert.equal(one.status, 200);
+  const found = await one.json();
+  assert.equal(found.father_phone, '0171 7654321');
+  assert.equal(found.medical_notes, 'Asthma');
 });
 
 test('Login-Rate-Limit: nach zu vielen Fehlversuchen 429', async () => {
