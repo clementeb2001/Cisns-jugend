@@ -92,9 +92,10 @@ Das Image wird von GitHub Actions gebaut und nach
 4. Off-Device-Backup des Volumes `jf-data` z.B. über Synology **Hyper Backup**.
 
 **Automatische Updates:** Die `docker-compose.yml` enthält einen `watchtower`-Dienst,
-der täglich (04:00 Uhr) prüft, ob ein neues Image vorliegt, es lädt und den
-Container `jf-praesenz` automatisch austauscht (Daten bleiben erhalten). Es wird
-gezielt **nur** `jf-praesenz` überwacht – andere Container bleiben unberührt.
+der alle 5 Minuten prüft, ob ein neues Image vorliegt, es lädt und den Container
+`jf-praesenz` automatisch austauscht (Daten bleiben erhalten). Die Prüfung läuft
+rein ausgehend (kein offener Port nötig). Es wird gezielt **nur** `jf-praesenz`
+überwacht – andere Container bleiben unberührt.
 
 > `docker-compose.build.yml` ist die reine Entwickler-Variante, die das Image
 > lokal aus dem Quellcode baut (`docker compose -f docker-compose.build.yml up`).

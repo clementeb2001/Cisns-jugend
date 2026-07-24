@@ -47,7 +47,7 @@ services:
       TZ: Europe/Luxembourg
       WATCHTOWER_CLEANUP: "true"                     # altes Image nach Update entfernen
       WATCHTOWER_INCLUDE_STOPPED: "false"
-      WATCHTOWER_SCHEDULE: "0 0 4 * * *"             # täglich um 04:00 Uhr prüfen
+      WATCHTOWER_POLL_INTERVAL: "300"                # alle 5 Min. auf neue Version prüfen
     command: jf-praesenz                              # nur diesen Container überwachen
 
 volumes:
