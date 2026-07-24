@@ -7,6 +7,22 @@ const router = Router();
 
 const pct = (present, total) => (total > 0 ? Math.round((present / total) * 1000) / 10 : 0);
 
+// Hebt die Kopfzeile hervor (Stil 2) und hängt unten eine aufsummierende
+// "Gesamt"-Zeile an (Stil 1). Die Spalte "Quote %" bleibt in der Gesamt-Zeile leer.
+function withTotals(rows) {
+  const header = rows[0];
+  const dataRows = rows.slice(1).filter((r) => r.length > 0);
+  const styledHeader = header.map((h) => ({ v: h, s: 2 }));
+  if (!dataRows.length) return [styledHeader, []];
+  const total = header.map((h, c) => {
+    if (c === 0) return { v: 'Gesamt', s: 1 };
+    if (h === 'Quote %') return { v: '', s: 1 };
+    const sum = dataRows.reduce((s, r) => s + (Number(r[c]) || 0), 0);
+    return { v: Math.round(sum * 100) / 100, s: 1 };
+  });
+  return [styledHeader, ...dataRows, total];
+}
+
 // GET /api/export?from=&to=&type=  — Excel mit 4 Blättern (nur Admin):
 //   Mitglieder: Übersicht, nach Terminart (Anwesenheit)
 //   Betreuer:   Übersicht (mit Stunden), nach Terminart (Anwesenheit)
@@ -44,10 +60,10 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
   `).all(params);
 
   const buf = buildXlsx([
-    { name: 'Mitglieder Übersicht', rows: overviewSheet(mData, false) },
-    { name: 'Mitglieder nach Art', rows: presentByTypePivot(mData, 'Mitglied') },
-    { name: 'Betreuer Übersicht', rows: overviewSheet(hData, true) },
-    { name: 'Betreuer nach Art', rows: presentByTypePivot(hData, 'Betreuer') },
+    { name: 'Mitglieder Übersicht', rows: withTotals(overviewSheet(mData, false)) },
+    { name: 'Mitglieder nach Art', rows: withTotals(presentByTypePivot(mData, 'Mitglied')) },
+    { name: 'Betreuer Übersicht', rows: withTotals(overviewSheet(hData, true)) },
+    { name: 'Betreuer nach Art', rows: withTotals(presentByTypePivot(hData, 'Betreuer')) },
   ]);
 
   const fname = `praesenz_${from || 'alle'}_${to || 'alle'}.xlsx`;
