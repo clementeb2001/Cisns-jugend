@@ -37,6 +37,19 @@
   const MEDAL_LABEL = { bronze: '🥉 Bronze', silber: '🥈 Silber', gold: '🥇 Gold' };
   const medalBadge = (medal) => (medal && MEDAL_LABEL[medal]
     ? `<span class="medal medal-${medal}">${MEDAL_LABEL[medal]}</span>` : '');
+
+  // Adresse (luxemburgisches Format), zweizeilig als HTML:
+  //   Hausnummer, Straße
+  //   L-Postleitzahl Ortschaft
+  function addressLines(m) {
+    const line1 = [m.house_number, m.street].map((s) => (s || '').trim()).filter(Boolean).join(', ');
+    const plz = (m.postal_code || '').trim();
+    const city = (m.city || '').trim();
+    const line2 = plz ? `L-${plz}${city ? ' ' + city : ''}` : city;
+    const lines = [line1, line2].filter(Boolean);
+    if (lines.length) return lines.map(esc).join('<br>');
+    return m.address ? esc(m.address) : ''; // Fallback auf frühere einzeilige Adresse
+  }
   function toast(msg, type = 'info') {
     const t = document.createElement('div');
     t.className = `toast toast-${type}`;
@@ -776,7 +789,8 @@
       <div class="card detail-sec"><div class="detail-h">Verwaltung</div>
         ${row('Matricule CGDIS', m.matricule_cgdis)}
         ${row('Matricule CNS', m.matricule_cns)}
-        ${row('Adresse', m.address)}
+        <div class="drow"><span class="dlabel">Adresse</span>${
+          addressLines(m) ? `<span class="dval">${addressLines(m)}</span>` : '<span class="dval empty">–</span>'}</div>
       </div>
       <div class="card detail-sec"><div class="detail-h">Gesundheit</div>
         ${row('Allergien', m.allergies)}
@@ -813,7 +827,14 @@
         <div class="form-sec-label">Verwaltung</div>
         <label>Matricule CGDIS<input name="matricule_cgdis" value="${esc(m?.matricule_cgdis || '')}" /></label>
         <label>Matricule CNS<input name="matricule_cns" value="${esc(m?.matricule_cns || '')}" /></label>
-        <label>Adresse<input name="address" value="${esc(m?.address || '')}" placeholder="Straße, Nr., PLZ, Ort" /></label>
+        <div class="form-row">
+          <label>Straße<input name="street" value="${esc(m?.street || '')}" placeholder="z.B. rue de l'École" /></label>
+          <label>Hausnr.<input name="house_number" value="${esc(m?.house_number || '')}" placeholder="z.B. 12" /></label>
+        </div>
+        <div class="form-row">
+          <label>Postleitzahl<input name="postal_code" value="${esc(m?.postal_code || '')}" inputmode="numeric" placeholder="z.B. 5370" /></label>
+          <label>Ortschaft<input name="city" value="${esc(m?.city || '')}" placeholder="z.B. Schuttrange" /></label>
+        </div>
 
         <div class="form-sec-label">Gesundheit</div>
         <label>Allergien<textarea name="allergies" rows="2">${esc(m?.allergies || '')}</textarea></label>
@@ -835,7 +856,9 @@
           mother_name: fd.get('mother_name'), mother_phone: fd.get('mother_phone'),
           father_name: fd.get('father_name'), father_phone: fd.get('father_phone'),
           matricule_cgdis: fd.get('matricule_cgdis'), matricule_cns: fd.get('matricule_cns'),
-          address: fd.get('address'), allergies: fd.get('allergies'), medical_notes: fd.get('medical_notes'),
+          street: fd.get('street'), house_number: fd.get('house_number'),
+          postal_code: fd.get('postal_code'), city: fd.get('city'),
+          allergies: fd.get('allergies'), medical_notes: fd.get('medical_notes'),
         };
         if (isEdit) payload.active = fd.get('active') ? 1 : 0;
         try {

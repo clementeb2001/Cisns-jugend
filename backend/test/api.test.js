@@ -301,7 +301,8 @@ test('Mitglied: Eltern-Kontakte, Medaille und Zusatzfelder werden gespeichert', 
       mother_name: 'Sabine Zart', mother_phone: '0170 1234567',
       father_name: 'Tom Zart', father_phone: '0171 7654321',
       matricule_cgdis: 'CG-123', matricule_cns: 'CN-456',
-      address: '1, rue Test, L-5370 Schuttrange', allergies: 'Nüsse', medical_notes: 'Asthma',
+      street: 'rue Test', house_number: '1', postal_code: '5370', city: 'Schuttrange',
+      allergies: 'Nüsse', medical_notes: 'Asthma',
     },
   });
   assert.equal(create.status, 201);
@@ -310,6 +311,10 @@ test('Mitglied: Eltern-Kontakte, Medaille und Zusatzfelder werden gespeichert', 
   assert.equal(created.mother_phone, '0170 1234567');
   assert.equal(created.father_name, 'Tom Zart');
   assert.equal(created.matricule_cgdis, 'CG-123');
+  assert.equal(created.street, 'rue Test');
+  assert.equal(created.house_number, '1');
+  assert.equal(created.postal_code, '5370');
+  assert.equal(created.city, 'Schuttrange');
   assert.equal(created.allergies, 'Nüsse');
 
   // Ungültige Medaille -> null

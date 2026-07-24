@@ -31,7 +31,11 @@ CREATE TABLE IF NOT EXISTS members (
   father_phone      TEXT,            -- Telefon Vater
   matricule_cgdis   TEXT,            -- Matricule CGDIS
   matricule_cns     TEXT,            -- Matricule CNS
-  address           TEXT,            -- Adresse
+  address           TEXT,            -- (Alt/Legacy) frühere einzeilige Adresse
+  street            TEXT,            -- Straße
+  house_number      TEXT,            -- Hausnummer
+  postal_code       TEXT,            -- Postleitzahl (ohne "L-")
+  city              TEXT,            -- Ortschaft
   allergies         TEXT,            -- Allergien
   medical_notes     TEXT,            -- Vorerkrankungen und Medikamente
   active            INTEGER NOT NULL DEFAULT 1,  -- inaktiv statt löschen (Statistik-Historie)

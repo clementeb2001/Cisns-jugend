@@ -14,7 +14,10 @@ const mapMember = (m) => ({
   mother_name: m.mother_name || null, mother_phone: m.mother_phone || null,
   father_name: m.father_name || null, father_phone: m.father_phone || null,
   matricule_cgdis: m.matricule_cgdis || null, matricule_cns: m.matricule_cns || null,
-  address: m.address || null, allergies: m.allergies || null, medical_notes: m.medical_notes || null,
+  address: m.address || null,
+  street: m.street || null, house_number: m.house_number || null,
+  postal_code: m.postal_code || null, city: m.city || null,
+  allergies: m.allergies || null, medical_notes: m.medical_notes || null,
 });
 
 // Optionale Textfelder aus dem Request holen (leer -> null)
@@ -23,7 +26,9 @@ const optFields = (b) => ({
   mother_name: b.mother_name?.trim() || null, mother_phone: b.mother_phone?.trim() || null,
   father_name: b.father_name?.trim() || null, father_phone: b.father_phone?.trim() || null,
   matricule_cgdis: b.matricule_cgdis?.trim() || null, matricule_cns: b.matricule_cns?.trim() || null,
-  address: b.address?.trim() || null, allergies: b.allergies?.trim() || null,
+  street: b.street?.trim() || null, house_number: b.house_number?.trim() || null,
+  postal_code: b.postal_code?.trim() || null, city: b.city?.trim() || null,
+  allergies: b.allergies?.trim() || null,
   medical_notes: b.medical_notes?.trim() || null,
 });
 
@@ -56,9 +61,9 @@ router.post('/', (req, res) => {
   const f = optFields(b);
   const info = db.prepare(`INSERT INTO members
       (first_name, last_name, birth_date, medal, mother_name, mother_phone, father_name, father_phone,
-       matricule_cgdis, matricule_cns, address, allergies, medical_notes)
+       matricule_cgdis, matricule_cns, street, house_number, postal_code, city, allergies, medical_notes)
       VALUES (@first_name, @last_name, @birth_date, @medal, @mother_name, @mother_phone, @father_name, @father_phone,
-       @matricule_cgdis, @matricule_cns, @address, @allergies, @medical_notes)`)
+       @matricule_cgdis, @matricule_cns, @street, @house_number, @postal_code, @city, @allergies, @medical_notes)`)
     .run({ first_name: String(first_name).trim(), last_name: String(last_name).trim(), birth_date: birth_date || null, ...f });
   res.status(201).json(mapMember(db.prepare('SELECT * FROM members WHERE id = ?').get(info.lastInsertRowid)));
 });
@@ -79,7 +84,8 @@ router.put('/:id', (req, res) => {
       mother_name = @mother_name, mother_phone = @mother_phone,
       father_name = @father_name, father_phone = @father_phone,
       matricule_cgdis = @matricule_cgdis, matricule_cns = @matricule_cns,
-      address = @address, allergies = @allergies, medical_notes = @medical_notes,
+      street = @street, house_number = @house_number, postal_code = @postal_code, city = @city,
+      allergies = @allergies, medical_notes = @medical_notes,
       active = COALESCE(@active, active),
       updated_at = datetime('now')
     WHERE id = @id`).run({

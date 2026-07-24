@@ -31,18 +31,18 @@ function seedDemo(adminId) {
   ).run(hashPin('1111')).lastInsertRowid;
 
   const members = [
-    // first, last, birth, medal, mother, motherTel, father, fatherTel, cgdis, cns, address, allergies, medical
-    ['Anna', 'Beispiel', '2012-04-11', 'gold', 'Sabine Beispiel', '0170 1234567', 'Thomas Beispiel', '0171 9876543', '2012-04-1123', '2012041112345', "12, rue de l'École, L-5370 Schuttrange", 'Erdnüsse, Pollen', 'Asthma – Notfallspray (Salbutamol)'],
-    ['Ben', 'Muster', '2011-09-02', 'silber', 'Petra Muster', '0172 2223344', '', '', '', '', '5, Cité Im Bruch, L-5316 Contern', '', ''],
-    ['Clara', 'Test', '2013-01-20', 'bronze', 'Nadine Test', '0691 445566', 'Marc Test', '0691 778899', '', '', '8, Op der Gëll, L-5335 Moutfort', 'Laktose', ''],
-    ['David', 'Probe', '2010-12-05', null, 'Eltern Probe', '0661 102030', '', '', '', '', '', '', ''],
+    // first, last, birth, medal, mother, motherTel, father, fatherTel, cgdis, cns, street, houseNo, plz, city, allergies, medical
+    ['Anna', 'Beispiel', '2012-04-11', 'gold', 'Sabine Beispiel', '0170 1234567', 'Thomas Beispiel', '0171 9876543', '2012-04-1123', '2012041112345', "rue de l'École", '12', '5370', 'Schuttrange', 'Erdnüsse, Pollen', 'Asthma – Notfallspray (Salbutamol)'],
+    ['Ben', 'Muster', '2011-09-02', 'silber', 'Petra Muster', '0172 2223344', '', '', '', '', 'Cité Im Bruch', '5', '5316', 'Contern', '', ''],
+    ['Clara', 'Test', '2013-01-20', 'bronze', 'Nadine Test', '0691 445566', 'Marc Test', '0691 778899', '', '', 'Op der Gëll', '8', '5335', 'Moutfort', 'Laktose', ''],
+    ['David', 'Probe', '2010-12-05', null, 'Eltern Probe', '0661 102030', '', '', '', '', '', '', '', '', '', ''],
   ];
-  const mIds = members.map(([f, l, b, medal, mn, mt, fn, ft, cg, cn, addr, al, med]) =>
+  const mIds = members.map(([f, l, b, medal, mn, mt, fn, ft, cg, cn, st, hn, plz, city, al, med]) =>
     db.prepare(`INSERT INTO members
       (first_name, last_name, birth_date, medal, mother_name, mother_phone, father_name, father_phone,
-       matricule_cgdis, matricule_cns, address, allergies, medical_notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(f, l, b, medal, mn, mt, fn, ft, cg, cn, addr, al, med).lastInsertRowid);
+       matricule_cgdis, matricule_cns, street, house_number, postal_code, city, allergies, medical_notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(f, l, b, medal, mn, mt, fn, ft, cg, cn, st, hn, plz, city, al, med).lastInsertRowid);
 
   const eventId = db.prepare(
     "INSERT INTO events (date, start_time, end_time, type, location, created_by) VALUES (?, '18:00', '19:30', 'Praktische Übung', 'Feuerwehrhaus', ?)"
