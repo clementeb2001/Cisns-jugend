@@ -117,7 +117,7 @@ body {
   color: #fff; display: flex; align-items: center; gap: 10px;
   padding: 12px 14px; box-shadow: 0 2px 10px rgba(15,23,42,.25);
 }
-.app-logo { width: 30px; height: 30px; border-radius: 8px; display: block; flex: none; }
+.app-logo { width: 42px; height: 42px; border-radius: 50%; display: block; flex: none; }
 .app-title { font-weight: 700; font-size: 1.1rem; letter-spacing: .01em; }
 .spacer { flex: 1; }
 .user-label { font-size: .85rem; opacity: .92; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 40vw; }
