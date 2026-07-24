@@ -68,6 +68,16 @@
   // Heutiges Datum (YYYY-MM-DD) in lokaler Zeit Europe/Luxembourg
   const todayLocal = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Luxembourg' }).format(new Date());
 
+  // Freundlicher Leer-Zustand mit Maskottchen (+ optionaler Aktions-Button)
+  function emptyMascot(title, text, actionId, actionLabel) {
+    return `<div class="empty-mascot">
+      <img src="/icons/icon-192.png" alt="" />
+      <h3>${esc(title)}</h3>
+      <p>${esc(text)}</p>
+      ${actionId ? `<button class="btn btn-primary" id="${actionId}">${esc(actionLabel)}</button>` : ''}
+    </div>`;
+  }
+
   // ---------- Jahrgang (Saison): 1. September – 31. August ----------
   // Startjahr = bei Monat >= September das laufende Jahr, sonst das Vorjahr.
   const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
@@ -226,7 +236,7 @@
       listHtml += secLabel('Abgeschlossene Termine', closed.length)
         + `<div class="closed-block">${closed.map((e) => eventCard(e, false, canDelete)).join('')}</div>`;
     }
-    if (!inSeason.length) listHtml = '<div class="empty">In diesem Jahrgang gibt es noch keine Termine.</div>';
+    if (!inSeason.length) listHtml = emptyMascot('Noch keine Termine', 'Lege den ersten Termin an – dann geht’s los!', 'empty-new-event', '+ Termin anlegen');
 
     main.innerHTML = `
       <div class="page-head">
@@ -243,6 +253,8 @@
       <div class="list">${listHtml}</div>`;
 
     $('#new-event').onclick = () => eventForm();
+    const emptyNew = $('#empty-new-event');
+    if (emptyNew) emptyNew.onclick = () => eventForm();
     $('#season-select').onchange = (e) => navigate('events', { season: Number(e.target.value) });
     // Admin: Wisch-zum-Löschen (Tippen öffnet den Termin) auf jeder Wisch-Karte.
     main.querySelectorAll('.swipe-row').forEach((row) => setupSwipeDelete(row));
@@ -786,9 +798,13 @@
       <div class="page-head"><h1>Mitglieder <span class="head-count">(${activeCount})</span></h1>${isAdmin ? '<button class="btn btn-primary" id="add-m">+ Mitglied</button>' : ''}</div>
       ${isAdmin ? '' : '<p class="hint-line">Tippe ein Mitglied an, um die Daten zu sehen (nur Ansicht).</p>'}
       ${members.length ? `<input type="search" id="member-search" class="member-search" placeholder="🔍 Mitglied suchen…" value="${esc(memberQuery)}" />` : ''}
-      <div class="list">${members.map((m) => memberCard(m)).join('') || '<div class="empty">Noch keine Mitglieder.</div>'}</div>
+      <div class="list">${members.length
+        ? members.map((m) => memberCard(m)).join('')
+        : emptyMascot('Noch keine Mitglieder', isAdmin ? 'Lege das erste Mitglied an.' : 'Es sind noch keine Mitglieder eingetragen.', isAdmin ? 'empty-add-m' : null, '+ Mitglied anlegen')}</div>
       <div id="no-match" class="empty" style="display:none">Kein Mitglied gefunden.</div>`;
     if (isAdmin) $('#add-m').onclick = () => memberForm();
+    const emptyAddM = $('#empty-add-m');
+    if (emptyAddM) emptyAddM.onclick = () => memberForm();
     main.querySelectorAll('[data-member]').forEach((c) =>
       c.onclick = () => navigate('member', { id: Number(c.dataset.member) }));
     const search = $('#member-search');
