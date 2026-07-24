@@ -734,8 +734,9 @@
     let members;
     try { members = await API.get('/members' + (isAdmin ? '?includeInactive=1' : '')); }
     catch { members = await data.members(); }
+    const activeCount = members.filter((m) => m.active).length;
     main.innerHTML = `
-      <div class="page-head"><h1>Mitglieder</h1>${isAdmin ? '<button class="btn btn-primary" id="add-m">+ Mitglied</button>' : ''}</div>
+      <div class="page-head"><h1>Mitglieder <span class="head-count">(${activeCount})</span></h1>${isAdmin ? '<button class="btn btn-primary" id="add-m">+ Mitglied</button>' : ''}</div>
       ${isAdmin ? '' : '<p class="hint-line">Tippe ein Mitglied an, um die Daten zu sehen (nur Ansicht).</p>'}
       <div class="list">${members.map((m) => memberCard(m)).join('') || '<div class="empty">Noch keine Mitglieder.</div>'}</div>`;
     if (isAdmin) $('#add-m').onclick = () => memberForm();

@@ -162,6 +162,7 @@ body {
 .page-head { display: flex; align-items: center; justify-content: space-between; margin: 2px 0 16px; gap: 10px; }
 /* Überschriften stehen direkt auf dem dunklen App-Hintergrund -> helle Schrift */
 .page-head h1 { font-size: 1.5rem; color: var(--on-dark); letter-spacing: -.01em; font-weight: 700; }
+.head-count { color: var(--on-dark-muted); font-weight: 600; font-size: 1.1rem; }
 .page-head h2 { font-size: 1.15rem; color: var(--on-dark); font-weight: 700; }
 .section-title { margin: 20px 0 10px; font-size: 1.1rem; color: var(--on-dark); font-weight: 700; }
 .section-title .muted { color: var(--on-dark-muted); }
