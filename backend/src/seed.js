@@ -4,6 +4,7 @@
 // fällt auf "admin" / "1234" zurück. Bitte danach die PIN in der App ändern!
 import db from './db.js';
 import { hashPin } from './auth.js';
+import { todayLocal } from './util.js';
 
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin';
 const ADMIN_PIN = process.env.ADMIN_PIN || '1234';
@@ -46,7 +47,7 @@ function seedDemo(adminId) {
 
   const eventId = db.prepare(
     "INSERT INTO events (date, start_time, end_time, type, location, created_by) VALUES (?, '18:00', '19:30', 'Praktische Übung', 'Feuerwehrhaus', ?)"
-  ).run(new Date().toISOString().slice(0, 10), helperId).lastInsertRowid;
+  ).run(todayLocal(), helperId).lastInsertRowid;
 
   const uuid = () => (globalThis.crypto?.randomUUID ? crypto.randomUUID() : String(Math.random()).slice(2));
   const statuses = ['present', 'present', 'excused', 'unexcused'];

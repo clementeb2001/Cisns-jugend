@@ -10,6 +10,7 @@ import eventRoutes from './routes/events.js';
 import syncRoutes from './routes/sync.js';
 import statsRoutes from './routes/stats.js';
 import exportRoutes from './routes/export.js';
+import backupRoutes from './routes/backup.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
@@ -48,6 +49,7 @@ app.use('/api/events', eventRoutes);
 app.use('/api/sync', syncRoutes);
 app.use('/api/stats', statsRoutes);
 app.use('/api/export', exportRoutes);
+app.use('/api/backup', backupRoutes);
 
 // Statisches Frontend ausliefern (PWA)
 const frontendDir = process.env.FRONTEND_DIR || path.join(__dirname, '..', '..', 'frontend');

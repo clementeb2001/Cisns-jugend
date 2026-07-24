@@ -65,6 +65,9 @@
   }
   const closedBadge = (ev) => ev.closed ? '<span class="badge badge-closed">🔒 Abgeschlossen</span>' : '';
 
+  // Heutiges Datum (YYYY-MM-DD) in lokaler Zeit Europe/Luxembourg
+  const todayLocal = () => new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Luxembourg' }).format(new Date());
+
   // ---------- Jahrgang (Saison): 1. September – 31. August ----------
   // Startjahr = bei Monat >= September das laufende Jahr, sonst das Vorjahr.
   const WEEKDAYS = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'];
@@ -74,7 +77,7 @@
     return m >= 9 ? y : y - 1;
   }
   const seasonLabel = (s) => `${s} – ${s + 1}`;
-  const currentSeason = () => seasonStart(new Date().toISOString().slice(0, 10));
+  const currentSeason = () => seasonStart(todayLocal());
   function weekday(iso) {
     if (!iso) return '';
     const d = new Date(iso + 'T00:00:00');
@@ -100,7 +103,7 @@
   const data = {
     async events() {
       const evs = await IDB.getAll('events');
-      const today = new Date().toISOString().slice(0, 10);
+      const today = todayLocal();
       // Kommende Termine zuerst (nächster ganz oben, aufsteigend),
       // vergangene danach (jüngster zuerst, absteigend).
       const upcoming = evs.filter((e) => (e.date || '') >= today)
@@ -191,7 +194,7 @@
   // ---------- Ansicht: Termine ----------
   async function renderEvents(main) {
     const events = await data.events();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocal();
 
     // Jahrgang-Auswahl: alle vorhandenen Jahrgänge + der aktuelle (auch ohne Termine),
     // neuester oben. Standard: aktueller Jahrgang (springt ab 1. September von allein weiter).
@@ -355,7 +358,7 @@
       ? [...mAtt].sort((a, b) => (a.entered_at || '').localeCompare(b.entered_at || ''))[0].entered_by
       : null;
     // Präsenz kann erst ab dem Termintag erfasst werden (nicht vorher – für alle).
-    const beforeEvent = ev.date > new Date().toISOString().slice(0, 10);
+    const beforeEvent = ev.date > todayLocal();
     const memberEditable = !beforeEvent && (isAdmin || (!ev.closed && (recorder === null || recorder === state.user.id)));
     const helperEditable = !beforeEvent && (isAdmin || !ev.closed);
 
@@ -380,7 +383,7 @@
         ${ev.note ? `<div class="event-note">${esc(ev.note)}</div>` : ''}
         ${isAdmin ? (ev.closed
           ? '<button class="btn btn-outline btn-close" id="toggle-close">🔓 Termin wieder öffnen</button>'
-          : (ev.date <= new Date().toISOString().slice(0, 10)
+          : (ev.date <= todayLocal()
             ? '<button class="btn btn-danger btn-close" id="toggle-close">🔒 Termin abschließen</button>'
             : '<div class="field-hint">🔒 Abschließen ist erst ab dem Termintag möglich.</div>')) : ''}
       </div>
@@ -549,7 +552,7 @@
     const isEdit = !!ev;
     const body = `
       <form id="event-form" class="form">
-        <label>Datum<input type="date" name="date" value="${ev?.date || new Date().toISOString().slice(0, 10)}" required /></label>
+        <label>Datum<input type="date" name="date" value="${ev?.date || todayLocal()}" required /></label>
         <div class="form-row">
           <label>Beginn<input type="time" name="start_time" value="${ev?.start_time || '10:00'}" /></label>
           <label>Ende<input type="time" name="end_time" value="${ev?.end_time || '12:00'}" /></label>
@@ -736,17 +739,43 @@
       <div class="tabs">
         <button class="tab ${sub === 'users' ? 'active' : ''}" data-sub="users">Helfer</button>
         <button class="tab ${sub === 'sync' ? 'active' : ''}" data-sub="sync">Sync</button>
+        <button class="tab ${sub === 'backup' ? 'active' : ''}" data-sub="backup">Sicherung</button>
       </div>
       <div id="admin-body"></div>`;
     main.querySelectorAll('.tab').forEach((t) => t.onclick = () => navigate('admin', { sub: t.dataset.sub }));
     const body = $('#admin-body');
     if (sub === 'sync') return adminSync(body);
+    if (sub === 'backup') return adminBackup(body);
     return adminUsers(body);
+  }
+
+  // ---------- Verwaltung: Datensicherung ----------
+  function adminBackup(body) {
+    body.innerHTML = `
+      <div class="page-head"><h2>Datensicherung</h2></div>
+      <div class="card">
+        <p>Der Server erstellt <b>automatisch täglich</b> eine Sicherung der Datenbank – die letzten 14 Tage bleiben erhalten.</p>
+        <p class="muted small">Diese Sicherungen liegen auf dem NAS. Für zusätzlichen Schutz vor einem Plattendefekt empfiehlt sich Synology <b>Hyper Backup</b> (sichert extern oder in eine Cloud).</p>
+        <button class="btn btn-primary btn-block" id="dl-backup" style="margin-top:12px">⬇ Datenbank jetzt herunterladen</button>
+        <p class="muted small" style="margin-top:8px">Lädt eine vollständige Kopie der Datenbank auf dein Gerät – z. B. zum Aufheben oder in eine Cloud legen.</p>
+      </div>`;
+    $('#dl-backup').onclick = async () => {
+      try {
+        const blob = await API.downloadBackup();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url; a.download = `jugend-cisns-backup-${todayLocal()}.db`; a.click();
+        URL.revokeObjectURL(url);
+        toast('Backup heruntergeladen', 'success');
+      } catch (e) { toast(e.message, 'error'); }
+    };
   }
 
   // ---------- Ansicht: Mitglieder (Roster) ----------
   // Admin kann bearbeiten/anlegen; Helfer sehen die Liste nur (inkl.
   // Notfallkontakt), ohne Änderungsmöglichkeit.
+  let memberQuery = ''; // Suchbegriff der Mitgliederliste (bleibt über Neu-Rendern erhalten)
+
   async function renderRoster(main) {
     const isAdmin = state.user.role === 'admin';
     let members;
@@ -756,10 +785,31 @@
     main.innerHTML = `
       <div class="page-head"><h1>Mitglieder <span class="head-count">(${activeCount})</span></h1>${isAdmin ? '<button class="btn btn-primary" id="add-m">+ Mitglied</button>' : ''}</div>
       ${isAdmin ? '' : '<p class="hint-line">Tippe ein Mitglied an, um die Daten zu sehen (nur Ansicht).</p>'}
-      <div class="list">${members.map((m) => memberCard(m)).join('') || '<div class="empty">Noch keine Mitglieder.</div>'}</div>`;
+      ${members.length ? `<input type="search" id="member-search" class="member-search" placeholder="🔍 Mitglied suchen…" value="${esc(memberQuery)}" />` : ''}
+      <div class="list">${members.map((m) => memberCard(m)).join('') || '<div class="empty">Noch keine Mitglieder.</div>'}</div>
+      <div id="no-match" class="empty" style="display:none">Kein Mitglied gefunden.</div>`;
     if (isAdmin) $('#add-m').onclick = () => memberForm();
     main.querySelectorAll('[data-member]').forEach((c) =>
       c.onclick = () => navigate('member', { id: Number(c.dataset.member) }));
+    const search = $('#member-search');
+    if (search) {
+      search.oninput = () => { memberQuery = search.value; applyMemberFilter(main); };
+      applyMemberFilter(main);
+    }
+  }
+
+  // Blendet Mitglieder-Karten passend zum Suchbegriff ein/aus (nach Name)
+  function applyMemberFilter(main) {
+    const q = memberQuery.trim().toLowerCase();
+    let visible = 0;
+    main.querySelectorAll('.member-row').forEach((row) => {
+      const name = row.querySelector('.m-name').textContent.toLowerCase();
+      const show = !q || name.includes(q);
+      row.style.display = show ? '' : 'none';
+      if (show) visible++;
+    });
+    const none = main.querySelector('#no-match');
+    if (none) none.style.display = (q && visible === 0) ? '' : 'none';
   }
 
   // Kompakte Listenkarte: Name + Medaille + Alter (nur Jahre). Öffnet die Detailseite.

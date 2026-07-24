@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, requireAdmin } from '../auth.js';
+import { todayLocal } from '../util.js';
 
 const router = Router();
 
@@ -22,7 +23,7 @@ function getEvent(id) {
 
 // Präsenz darf erst ab dem Termintag erfasst werden (kein Vor-Eintragen künftiger Termine)
 function beforeEventDay(ev) {
-  return ev.date > new Date().toISOString().slice(0, 10);
+  return ev.date > todayLocal();
 }
 
 // Upsert eines Mitglieder-Präsenz-Eintrags mit Last-Write-Wins + Rechteprüfung

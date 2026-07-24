@@ -303,6 +303,15 @@ test('Excel-Export: nur Admin, valides XLSX (ZIP mit erwarteten Teilen)', async 
   assert.ok(text.includes('Betreuer'));
 });
 
+test('Backup-Download: nur Admin, liefert gültige SQLite-Datei', async () => {
+  const forbidden = await api('GET', '/api/backup', { token: helperToken });
+  assert.equal(forbidden.status, 403);
+  const res = await api('GET', '/api/backup', { token: adminToken });
+  assert.equal(res.status, 200);
+  const buf = Buffer.from(await res.arrayBuffer());
+  assert.equal(buf.slice(0, 15).toString('latin1'), 'SQLite format 3');
+});
+
 test('Helfer darf keine fremde Helfer-Präsenz eintragen (nur eigene)', async () => {
   const otherId = db.prepare('SELECT id FROM users WHERE username = ?').get('helfer2').id;
   // helfer1 versucht, die Präsenz von helfer2 einzutragen -> abgelehnt

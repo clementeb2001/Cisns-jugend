@@ -251,6 +251,9 @@ body {
 }
 .swipe-delete .tr { font-size: 1.15rem; }
 
+/* Mitglieder-Suche */
+.member-search { margin-bottom: 12px; }
+
 /* Mitglieder-Liste: antippbare Karte mit Medaille */
 .member-row { cursor: pointer; }
 .member-row .m-name { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

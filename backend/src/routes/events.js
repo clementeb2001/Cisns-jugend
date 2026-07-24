@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import db from '../db.js';
 import { requireAuth, requireAdmin } from '../auth.js';
+import { todayLocal } from '../util.js';
 
 const router = Router();
 
@@ -123,7 +124,7 @@ function setClosed(req, res, value) {
   if (!e) return res.status(404).json({ error: 'Termin nicht gefunden' });
   // Abschließen erst ab dem Termintag erlauben (kein Abschließen künftiger Termine)
   if (value === 1) {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = todayLocal();
     if (e.date > today) {
       return res.status(400).json({ error: 'Der Termin kann erst ab dem Termintag abgeschlossen werden' });
     }

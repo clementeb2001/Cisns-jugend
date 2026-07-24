@@ -39,6 +39,15 @@ const API = (() => {
       if (!resp.ok) throw new Error('Export fehlgeschlagen');
       return resp.blob();
     },
+
+    // Datenbank-Sicherung als Blob herunterladen (nur Admin)
+    async downloadBackup() {
+      const headers = {};
+      if (token) headers['Authorization'] = 'Bearer ' + token;
+      const resp = await fetch('/api/backup', { headers });
+      if (!resp.ok) throw new Error('Backup fehlgeschlagen');
+      return resp.blob();
+    },
   };
 })();
 
