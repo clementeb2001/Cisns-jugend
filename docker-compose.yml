@@ -6,13 +6,15 @@
 #   2. Im selben Ordner eine .env anlegen (siehe .env.example) mit JWT_SECRET, ADMIN_*
 #   3. Container Manager -> Projekt -> Erstellen -> diesen Ordner wählen
 #
-# Update später (Synology Container Manager):
-#   Da Container Manager pull_policy nicht immer beachtet, ist der zuverlässige Weg:
-#   1. Project -> Aktion -> Stop
-#   2. Container -> jf-praesenz -> Delete   (nur der Container, Daten bleiben im Volume)
-#   3. Image -> ghcr.io/.../cisns-jugend -> Delete   (erzwingt frischen Download)
-#   4. Project -> Aktion -> Build            (holt das neue Image aus dem Internet)
-#   Per SSH einfacher:  docker compose pull && docker compose up -d
+# Automatische Updates: Der mitgelieferte "watchtower"-Dienst prüft täglich, ob
+# eine neue Version im Internet liegt, lädt sie und tauscht den Container von
+# selbst aus (Daten bleiben erhalten). Nach der EINMALIGEN Ersteinrichtung ist
+# damit kein manuelles Update mehr nötig.
+#
+# Ersteinrichtung im Synology Container Manager:
+#   1. Diese Datei als docker-compose.yml in einen Ordner legen (z. B. /docker/jugend-cisns)
+#   2. Im selben Ordner eine .env anlegen (siehe .env.example) mit JWT_SECRET, ADMIN_*
+#   3. Container Manager -> Projekt -> Erstellen -> diesen Ordner wählen
 
 services:
   app:
@@ -31,6 +33,22 @@ services:
       FRONTEND_DIR: /frontend
     volumes:
       - jf-data:/data            # persistente SQLite-DB (bleibt über Updates erhalten)
+
+  # Automatische Updates NUR für den Container "jf-praesenz".
+  # Andere Container auf dem NAS (z. B. Home Assistant, Cloudflare Tunnel) werden
+  # bewusst NICHT angefasst, da hier gezielt nur "jf-praesenz" überwacht wird.
+  watchtower:
+    image: containrrr/watchtower:latest
+    container_name: jf-watchtower
+    restart: unless-stopped
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock   # nötig, um Container zu aktualisieren
+    environment:
+      TZ: Europe/Luxembourg
+      WATCHTOWER_CLEANUP: "true"                     # altes Image nach Update entfernen
+      WATCHTOWER_INCLUDE_STOPPED: "false"
+      WATCHTOWER_SCHEDULE: "0 0 4 * * *"             # täglich um 04:00 Uhr prüfen
+    command: jf-praesenz                              # nur diesen Container überwachen
 
 volumes:
   jf-data:
