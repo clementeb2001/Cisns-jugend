@@ -103,7 +103,7 @@ body {
   box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 13px;
 }
 .login-logo { text-align: center; margin: 0 auto 8px; }
-.login-logo img { width: 88px; height: 88px; border-radius: 20px; box-shadow: var(--shadow-lg); display: block; margin: 0 auto; }
+.login-logo img { width: 92px; height: 92px; border-radius: 50%; display: block; margin: 0 auto; }
 .login-card h1 { text-align: center; font-size: 1.5rem; color: var(--red); letter-spacing: -.01em; }
 .login-sub { text-align: center; color: var(--muted); margin-top: -6px; margin-bottom: 8px; font-size: .95rem; }
 .login-card label { display: flex; flex-direction: column; gap: 6px; font-weight: 600; font-size: .9rem; color: var(--muted-strong); }
