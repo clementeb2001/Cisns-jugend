@@ -17,7 +17,12 @@ function memberRecorder(eventId) {
 }
 
 function getEvent(id) {
-  return db.prepare('SELECT id, closed FROM events WHERE id = ?').get(id);
+  return db.prepare('SELECT id, closed, date FROM events WHERE id = ?').get(id);
+}
+
+// Präsenz darf erst ab dem Termintag erfasst werden (kein Vor-Eintragen künftiger Termine)
+function beforeEventDay(ev) {
+  return ev.date > new Date().toISOString().slice(0, 10);
 }
 
 // Upsert eines Mitglieder-Präsenz-Eintrags mit Last-Write-Wins + Rechteprüfung
@@ -27,6 +32,7 @@ function upsertMember(user, rec) {
   }
   const ev = getEvent(rec.event_id);
   if (!ev) return { id: rec.id, ok: false, error: 'Termin nicht gefunden' };
+  if (beforeEventDay(ev)) return { id: rec.id, ok: false, error: 'Präsenz kann erst ab dem Termintag eingetragen werden' };
 
   const existing = db.prepare('SELECT * FROM attendance_members WHERE id = ? OR (event_id = ? AND member_id = ?)')
     .get(rec.id, rec.event_id, rec.member_id);
@@ -69,6 +75,7 @@ function upsertHelper(user, rec) {
   }
   const ev = getEvent(rec.event_id);
   if (!ev) return { id: rec.id, ok: false, error: 'Termin nicht gefunden' };
+  if (beforeEventDay(ev)) return { id: rec.id, ok: false, error: 'Präsenz kann erst ab dem Termintag eingetragen werden' };
   // Helfer dürfen nur die EIGENE Präsenz erfassen; Admin darf für alle eintragen.
   if (user.role !== 'admin') {
     if (rec.helper_id !== user.id) {

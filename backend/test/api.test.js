@@ -266,6 +266,24 @@ test('Zukünftiger Termin kann nicht abgeschlossen werden', async () => {
   assert.equal(still.closed, 0);
 });
 
+test('Präsenz für zukünftigen Termin wird abgelehnt (Mitglied + Betreuer)', async () => {
+  const future = await (await api('POST', '/api/events', { token: adminToken,
+    body: { date: '2999-11-11', type: 'Theorie' } })).json();
+  const adminId = db.prepare("SELECT id FROM users WHERE username = 'admin'").get().id;
+  const res = await api('POST', '/api/sync/push', {
+    token: adminToken,
+    body: {
+      attendance_members: [{ id: crypto.randomUUID(), event_id: future.id, member_id: memberId, status: 'present', updated_at: new Date().toISOString() }],
+      attendance_helpers: [{ id: crypto.randomUUID(), event_id: future.id, helper_id: adminId, status: 'present', hours: 2, updated_at: new Date().toISOString() }],
+    },
+  });
+  const j = await res.json();
+  assert.equal(j.attendance_members[0].ok, false);
+  assert.equal(j.attendance_helpers[0].ok, false);
+  // nichts gespeichert
+  assert.equal(db.prepare('SELECT COUNT(*) c FROM attendance_members WHERE event_id = ?').get(future.id).c, 0);
+});
+
 test('Excel-Export: nur Admin, valides XLSX (ZIP mit erwarteten Teilen)', async () => {
   const forbidden = await api('GET', '/api/export', { token: helperToken });
   assert.equal(forbidden.status, 403);

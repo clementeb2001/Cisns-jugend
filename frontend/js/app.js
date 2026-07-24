@@ -354,13 +354,17 @@
     const recorder = mAtt.length
       ? [...mAtt].sort((a, b) => (a.entered_at || '').localeCompare(b.entered_at || ''))[0].entered_by
       : null;
-    const memberEditable = isAdmin || (!ev.closed && (recorder === null || recorder === state.user.id));
-    const helperEditable = isAdmin || !ev.closed;
+    // Präsenz kann erst ab dem Termintag erfasst werden (nicht vorher – für alle).
+    const beforeEvent = ev.date > new Date().toISOString().slice(0, 10);
+    const memberEditable = !beforeEvent && (isAdmin || (!ev.closed && (recorder === null || recorder === state.user.id)));
+    const helperEditable = !beforeEvent && (isAdmin || !ev.closed);
 
-    const memberNote = memberEditable ? '' : (ev.closed
+    const beforeNote = '<div class="lock-note">🔒 Präsenz kann erst ab dem Termintag eingetragen werden.</div>';
+    const memberNote = memberEditable ? '' : (beforeEvent ? beforeNote : (ev.closed
       ? '<div class="lock-note">🔒 Termin abgeschlossen – Änderungen nur durch die Leitung.</div>'
-      : '<div class="lock-note">🔒 Bereits von einem anderen Helfer erfasst – Korrekturen nur durch die Leitung.</div>');
-    const helperNote = helperEditable ? '' : '<div class="lock-note">🔒 Termin abgeschlossen – Stunden nur durch die Leitung änderbar.</div>';
+      : '<div class="lock-note">🔒 Bereits von einem anderen Helfer erfasst – Korrekturen nur durch die Leitung.</div>'));
+    const helperNote = helperEditable ? '' : (beforeEvent ? beforeNote
+      : '<div class="lock-note">🔒 Termin abgeschlossen – Stunden nur durch die Leitung änderbar.</div>');
 
     main.innerHTML = `
       <div class="page-head">
