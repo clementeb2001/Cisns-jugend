@@ -31,6 +31,8 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('Referrer-Policy', 'same-origin');
+  // Suchmaschinen: nicht indexieren, nicht in Trefferlisten aufnehmen
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow, noarchive');
   // Nur über HTTPS wirksam; der Reverse-Proxy terminiert TLS.
   res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
   next();
