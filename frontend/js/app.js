@@ -38,6 +38,16 @@
   const medalBadge = (medal) => (medal && MEDAL_LABEL[medal]
     ? `<span class="medal medal-${medal}">${MEDAL_LABEL[medal]}</span>` : '');
 
+  // Passwort-Anforderungen (für die Live-Checkliste beim Setzen eines Passworts)
+  const PW_RULES = [
+    { key: 'len', label: 'Mindestens 8 Zeichen', test: (s) => s.length >= 8 },
+    { key: 'upper', label: 'Großbuchstabe (A–Z)', test: (s) => /[A-Z]/.test(s) },
+    { key: 'lower', label: 'Kleinbuchstabe (a–z)', test: (s) => /[a-z]/.test(s) },
+    { key: 'digit', label: 'Zahl (0–9)', test: (s) => /[0-9]/.test(s) },
+    { key: 'special', label: 'Sonderzeichen (!?#…)', test: (s) => /[^A-Za-z0-9]/.test(s) },
+  ];
+  const pwAllOk = (s) => PW_RULES.every((r) => r.test(String(s || '')));
+
   // Adresse (luxemburgisches Format), zweizeilig als HTML:
   //   Hausnummer, Straße
   //   L-Postleitzahl Ortschaft
@@ -992,8 +1002,11 @@
           <select name="role"><option value="helper" ${u?.role === 'helper' ? 'selected' : ''}>Helfer</option>
           <option value="admin" ${u?.role === 'admin' ? 'selected' : ''}>Administrator</option></select>
         </label>
-        <label>Passwort (mind. 8 Zeichen)${isEdit ? ' – leer lassen für unverändert' : ''}
-          <input name="pin" type="text" autocomplete="new-password" minlength="8" placeholder="Buchstaben, Zahlen, Zeichen" ${isEdit ? '' : 'required'} /></label>
+        <label>Passwort${isEdit ? ' – leer lassen für unverändert' : ''}
+          <input name="pin" type="text" autocomplete="new-password" placeholder="Neues Passwort" ${isEdit ? '' : 'required'} /></label>
+        <div class="pw-reqs" id="pw-reqs">
+          ${PW_RULES.map((r) => `<div class="pw-req" data-key="${r.key}">${r.label}</div>`).join('')}
+        </div>
         ${isEdit ? `<label class="check"><input type="checkbox" name="active" ${u.active ? 'checked' : ''} /> aktiv</label>` : ''}
         <div class="form-actions">
           ${isEdit ? '<button type="button" class="btn btn-danger" id="del-u">Löschen</button>' : '<span></span>'}
@@ -1001,9 +1014,27 @@
         </div>
       </form>`;
     openModal(isEdit ? 'Benutzer bearbeiten' : 'Neuer Benutzer', body, (root, close) => {
+      // Live-Checkliste: erfüllte Anforderungen werden grün
+      const pwInput = root.querySelector('input[name=pin]');
+      const reqs = root.querySelector('#pw-reqs');
+      const updateReqs = () => {
+        const s = pwInput.value;
+        reqs.style.display = (!isEdit || s) ? '' : 'none';
+        reqs.querySelectorAll('.pw-req').forEach((el) => {
+          const rule = PW_RULES.find((r) => r.key === el.dataset.key);
+          el.classList.toggle('ok', !!(s && rule.test(s)));
+        });
+      };
+      pwInput.addEventListener('input', updateReqs);
+      updateReqs();
+
       root.querySelector('#u-form').onsubmit = async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
+        const pinVal = fd.get('pin');
+        if ((!isEdit || pinVal) && !pwAllOk(pinVal)) {
+          toast('Passwort erfüllt noch nicht alle Anforderungen', 'error'); return;
+        }
         try {
           if (isEdit) {
             const payload = { display_name: fd.get('display_name'), role: fd.get('role'), active: fd.get('active') ? 1 : 0 };

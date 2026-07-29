@@ -4,7 +4,9 @@ import db from './db.js';
 
 const DEFAULT_SECRET = 'CHANGE_ME_INSECURE_DEV_SECRET';
 const JWT_SECRET = process.env.JWT_SECRET || DEFAULT_SECRET;
-const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || '30d';
+// Standard: kein Ablauf -> Nutzer bleiben angemeldet, bis sie sich abmelden
+// (oder ihr Konto deaktiviert wird). Per JWT_EXPIRES_IN (z.B. "30d") überschreibbar.
+const JWT_EXPIRES_IN = process.env.JWT_EXPIRES_IN || 'never';
 
 // Beim Serverstart aufrufen: bricht hart ab, wenn kein echtes Secret gesetzt ist.
 // (Verhindert, dass mit dem im Code stehenden Default-Secret Tokens fälschbar sind.)
@@ -24,10 +26,14 @@ export function verifyPin(pin, hash) {
 }
 
 export function signToken(user) {
+  const opts = { algorithm: 'HS256' };
+  if (JWT_EXPIRES_IN && !['never', '0', 'none'].includes(JWT_EXPIRES_IN)) {
+    opts.expiresIn = JWT_EXPIRES_IN;
+  }
   return jwt.sign(
     { sub: user.id, username: user.username, role: user.role, name: user.display_name },
     JWT_SECRET,
-    { expiresIn: JWT_EXPIRES_IN, algorithm: 'HS256' }
+    opts
   );
 }
 

@@ -271,6 +271,13 @@ body {
 .empty-mascot p { color: var(--on-dark-muted); font-size: .9rem; }
 .empty-mascot .btn { margin-top: 14px; }
 
+/* Passwort-Anforderungen (Live-Checkliste) */
+.pw-reqs { display: flex; flex-direction: column; gap: 5px; margin-top: -4px; }
+.pw-req { font-size: .82rem; color: var(--muted); display: flex; align-items: center; gap: 7px; transition: color .15s var(--ease); }
+.pw-req::before { content: "○"; font-weight: 700; color: #cbd5e1; width: 1em; text-align: center; }
+.pw-req.ok { color: var(--green); font-weight: 600; }
+.pw-req.ok::before { content: "✓"; color: var(--green); }
+
 /* Mitglieder-Suche */
 .member-search { margin-bottom: 12px; }
 

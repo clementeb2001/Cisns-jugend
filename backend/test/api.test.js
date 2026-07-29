@@ -312,15 +312,24 @@ test('Backup-Download: nur Admin, liefert gültige SQLite-Datei', async () => {
   assert.equal(buf.slice(0, 15).toString('latin1'), 'SQLite format 3');
 });
 
-test('Passwort-Regel: unter 8 Zeichen abgelehnt, echtes Passwort akzeptiert + Login', async () => {
+test('Passwort-Regel: Groß/klein/Zahl/Sonderzeichen + min. 8, dann Login', async () => {
   const short = await api('POST', '/api/users', { token: adminToken,
-    body: { username: 'pwtest1', pin: 'abc12', display_name: 'PW Kurz', role: 'helper' } });
-  assert.equal(short.status, 400);
+    body: { username: 'pwtest1', pin: 'Abc1!', display_name: 'PW Kurz', role: 'helper' } });
+  assert.equal(short.status, 400); // zu kurz
+  const noSpecial = await api('POST', '/api/users', { token: adminToken,
+    body: { username: 'pwtest1b', pin: 'Feuerwehr2026', display_name: 'PW ohne Zeichen', role: 'helper' } });
+  assert.equal(noSpecial.status, 400); // kein Sonderzeichen
   const ok = await api('POST', '/api/users', { token: adminToken,
     body: { username: 'pwtest2', pin: 'Feuerwehr2026!', display_name: 'PW Stark', role: 'helper' } });
   assert.equal(ok.status, 201);
   const login = await api('POST', '/api/auth/login', { body: { username: 'pwtest2', pin: 'Feuerwehr2026!' } });
   assert.equal(login.status, 200);
+});
+
+test('Session: Token läuft standardmäßig nicht ab (kein exp)', async () => {
+  const { token } = await (await api('POST', '/api/auth/login', { body: { username: 'admin', pin: '1234' } })).json();
+  const payload = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+  assert.equal(payload.exp, undefined);
 });
 
 test('Helfer darf keine fremde Helfer-Präsenz eintragen (nur eigene)', async () => {

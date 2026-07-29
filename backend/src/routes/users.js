@@ -4,6 +4,18 @@ import { requireAuth, requireAdmin, hashPin } from '../auth.js';
 
 const router = Router();
 
+// Passwort-Anforderungen: min. 8 Zeichen + Groß, klein, Zahl, Sonderzeichen.
+// Gibt einen Fehlertext zurück oder null, wenn alles erfüllt ist.
+function passwordProblem(pw) {
+  const s = String(pw);
+  if (s.length < 8) return 'Passwort muss mindestens 8 Zeichen haben';
+  if (!/[A-Z]/.test(s)) return 'Passwort braucht einen Großbuchstaben';
+  if (!/[a-z]/.test(s)) return 'Passwort braucht einen Kleinbuchstaben';
+  if (!/[0-9]/.test(s)) return 'Passwort braucht eine Zahl';
+  if (!/[^A-Za-z0-9]/.test(s)) return 'Passwort braucht ein Sonderzeichen';
+  return null;
+}
+
 const publicUser = (u) => ({
   id: u.id, username: u.username, role: u.role,
   display_name: u.display_name, active: !!u.active, created_at: u.created_at,
@@ -31,9 +43,8 @@ router.post('/', (req, res) => {
   if (!username || !pin || !display_name || !['admin', 'helper'].includes(role)) {
     return res.status(400).json({ error: 'username, pin, display_name und gültige role erforderlich' });
   }
-  if (String(pin).length < 8) {
-    return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben' });
-  }
+  const pwErr = passwordProblem(pin);
+  if (pwErr) return res.status(400).json({ error: pwErr });
   try {
     const info = db.prepare(
       'INSERT INTO users (username, pin_hash, role, display_name) VALUES (?, ?, ?, ?)'
@@ -55,8 +66,9 @@ router.put('/:id', (req, res) => {
   if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
 
   const { display_name, role, active, pin } = req.body || {};
-  if (pin !== undefined && pin !== '' && String(pin).length < 8) {
-    return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben' });
+  if (pin !== undefined && pin !== '') {
+    const pwErr = passwordProblem(pin);
+    if (pwErr) return res.status(400).json({ error: pwErr });
   }
   db.prepare(`UPDATE users SET
       display_name = COALESCE(?, display_name),
