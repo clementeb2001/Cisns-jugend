@@ -992,8 +992,8 @@
           <select name="role"><option value="helper" ${u?.role === 'helper' ? 'selected' : ''}>Helfer</option>
           <option value="admin" ${u?.role === 'admin' ? 'selected' : ''}>Administrator</option></select>
         </label>
-        <label>PIN (4-6 Ziffern)${isEdit ? ' – leer lassen für unverändert' : ''}
-          <input name="pin" inputmode="numeric" pattern="[0-9]*" ${isEdit ? '' : 'required'} /></label>
+        <label>Passwort (mind. 8 Zeichen)${isEdit ? ' – leer lassen für unverändert' : ''}
+          <input name="pin" type="text" autocomplete="new-password" minlength="8" placeholder="Buchstaben, Zahlen, Zeichen" ${isEdit ? '' : 'required'} /></label>
         ${isEdit ? `<label class="check"><input type="checkbox" name="active" ${u.active ? 'checked' : ''} /> aktiv</label>` : ''}
         <div class="form-actions">
           ${isEdit ? '<button type="button" class="btn btn-danger" id="del-u">Löschen</button>' : '<span></span>'}

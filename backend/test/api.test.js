@@ -312,6 +312,17 @@ test('Backup-Download: nur Admin, liefert gültige SQLite-Datei', async () => {
   assert.equal(buf.slice(0, 15).toString('latin1'), 'SQLite format 3');
 });
 
+test('Passwort-Regel: unter 8 Zeichen abgelehnt, echtes Passwort akzeptiert + Login', async () => {
+  const short = await api('POST', '/api/users', { token: adminToken,
+    body: { username: 'pwtest1', pin: 'abc12', display_name: 'PW Kurz', role: 'helper' } });
+  assert.equal(short.status, 400);
+  const ok = await api('POST', '/api/users', { token: adminToken,
+    body: { username: 'pwtest2', pin: 'Feuerwehr2026!', display_name: 'PW Stark', role: 'helper' } });
+  assert.equal(ok.status, 201);
+  const login = await api('POST', '/api/auth/login', { body: { username: 'pwtest2', pin: 'Feuerwehr2026!' } });
+  assert.equal(login.status, 200);
+});
+
 test('Helfer darf keine fremde Helfer-Präsenz eintragen (nur eigene)', async () => {
   const otherId = db.prepare('SELECT id FROM users WHERE username = ?').get('helfer2').id;
   // helfer1 versucht, die Präsenz von helfer2 einzutragen -> abgelehnt

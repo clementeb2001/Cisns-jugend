@@ -31,8 +31,8 @@ router.post('/', (req, res) => {
   if (!username || !pin || !display_name || !['admin', 'helper'].includes(role)) {
     return res.status(400).json({ error: 'username, pin, display_name und gültige role erforderlich' });
   }
-  if (!/^\d{4,6}$/.test(String(pin))) {
-    return res.status(400).json({ error: 'PIN muss 4-6 Ziffern haben' });
+  if (String(pin).length < 8) {
+    return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben' });
   }
   try {
     const info = db.prepare(
@@ -55,8 +55,8 @@ router.put('/:id', (req, res) => {
   if (!user) return res.status(404).json({ error: 'Benutzer nicht gefunden' });
 
   const { display_name, role, active, pin } = req.body || {};
-  if (pin !== undefined && pin !== '' && !/^\d{4,6}$/.test(String(pin))) {
-    return res.status(400).json({ error: 'PIN muss 4-6 Ziffern haben' });
+  if (pin !== undefined && pin !== '' && String(pin).length < 8) {
+    return res.status(400).json({ error: 'Passwort muss mindestens 8 Zeichen haben' });
   }
   db.prepare(`UPDATE users SET
       display_name = COALESCE(?, display_name),
