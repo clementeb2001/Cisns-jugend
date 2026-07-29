@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+
+jobs:
+  backend-tests:
+    name: Backend-Tests (node --test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Node.js einrichten
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      # Reproduzierbare Installation inkl. nativer Kompilierung von better-sqlite3
+      # (build-essential/python3 sind auf ubuntu-latest bereits vorhanden).
+      - name: Abhängigkeiten installieren
+        run: npm ci
+
+      - name: Tests ausführen
+        run: npm test
+
+      # Informativ, blockiert den Build nicht (neu gemeldete Advisories sollen
+      # CI nicht ohne Code-Änderung rot färben).
+      - name: Sicherheits-Audit (Produktionsabhängigkeiten)
+        run: npm audit --omit=dev --audit-level=high
+        continue-on-error: true

@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#b31217" />
+  <meta name="robots" content="noindex, nofollow" />
+  <title>Jugend CISNS</title>
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/icons/icon-192.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/icons/icon-192.png" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+  <!-- Offline-Banner -->
+  <div id="offline-banner" class="offline-banner hidden">📴 Offline-Modus aktiv – Einträge werden lokal gespeichert</div>
+
+  <!-- Login-Ansicht -->
+  <div id="login-view" class="login-view hidden">
+    <div class="login-hero">
+      <img class="login-hero-logo" src="/icons/icon-192.png" alt="Jugend CISNS" />
+      <h1 class="login-hero-title">Jugend CISNS</h1>
+      <p class="login-hero-brand">Jugendpompjeeën Nidderaanwen-Schëtter</p>
+    </div>
+    <form id="login-form" class="login-sheet">
+      <p class="login-welcome">Willkommen! <b>Bitte anmelden.</b></p>
+      <label>Benutzername
+        <input type="text" id="login-username" autocomplete="username" required />
+      </label>
+      <label>Passwort
+        <input type="password" id="login-pin" autocomplete="current-password" required />
+      </label>
+      <button type="submit" class="btn btn-primary btn-lg">Anmelden</button>
+      <div id="login-error" class="error-msg"></div>
+    </form>
+  </div>
+
+  <!-- App-Ansicht -->
+  <div id="app-view" class="app-view hidden">
+    <header class="app-header">
+      <img class="app-logo" src="/icons/icon-192.png" alt="" />
+      <span class="app-title">Jugend CISNS</span>
+      <span id="sync-badge" class="sync-badge" title="Sync-Status"></span>
+      <span class="spacer"></span>
+      <span id="user-label" class="user-label"></span>
+      <button id="logout-btn" class="btn btn-ghost" title="Abmelden">⏻</button>
+    </header>
+
+    <main id="main-content" class="main-content"></main>
+
+    <nav id="bottom-nav" class="bottom-nav"></nav>
+  </div>
+
+  <!-- Modal-Container -->
+  <div id="modal-root"></div>
+
+  <script src="/js/db.js"></script>
+  <script src="/js/api.js"></script>
+  <script src="/js/sync.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

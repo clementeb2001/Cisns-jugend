@@ -1,0 +1,11 @@
+node_modules/
+.claude/
+backend/data/
+backups/
+*.db
+*.db-wal
+*.db-shm
+.env
+.DS_Store
+npm-debug.log*
+dist/

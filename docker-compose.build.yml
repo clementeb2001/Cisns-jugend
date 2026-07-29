@@ -1,0 +1,38 @@
+# NUR FÜR ENTWICKLUNG / lokales Selbst-Bauen aus dem Quellcode.
+# Für den normalen Betrieb auf dem NAS bitte docker-compose.yml verwenden
+# (lädt das fertige Image aus dem Internet – kein Bauen nötig).
+#
+# Diese Variante baut das Image lokal aus backend/Dockerfile und braucht daher
+# den kompletten Quellcode im selben Ordner.
+#
+# Konfiguration kommt aus der Datei .env (im selben Ordner) per env_file – so
+# funktioniert es auch im Synology Container Manager, der ${VAR}-Ersetzung beim
+# Erstellen nicht unterstützt. Die .env MUSS vorhanden sein (siehe .env.example).
+#
+# Backup: Die Datenbank liegt im dauerhaften Volume "jf-data" (übersteht Neubau
+# und Neustart). Für ein zusätzliches Off-Device-Backup empfiehlt sich Synology
+# Hyper Backup (sichert auch Docker-Volumes) – bewusst kein Backup-Container mehr,
+# da dessen Bind-Mount auf manchen NAS den Start blockiert hat.
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    image: jugendfeuerwehr-praesenz:latest
+    container_name: jf-praesenz
+    restart: unless-stopped
+    ports:
+      - "3000:3000"          # Reverse Proxy / Cloudflare Tunnel zeigt hierhin
+    env_file:
+      - .env                 # JWT_SECRET, ADMIN_USERNAME, ADMIN_PIN, ... aus .env
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      DB_PATH: /data/jugendfeuerwehr.db
+      FRONTEND_DIR: /frontend
+    volumes:
+      - jf-data:/data        # persistente SQLite-DB (bleibt über Neubauten erhalten)
+
+volumes:
+  jf-data:
